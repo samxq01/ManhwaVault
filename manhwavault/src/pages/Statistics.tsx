@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { statisticsService, type ReadingStatistics } from "@/services/statisticsService"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, Library, BookOpen, CheckCircle, FileText, Sun, Calendar, BarChart } from "lucide-react"
+import { manhwaService } from "@/services/manhwaService"
+import { AlertCircle, Zap, TrendingUp, Book, Activity, CheckCircle, Flame, Loader2 } from "lucide-react"
+import type { Manhwa } from "@/types"
 
 export function Statistics() {
   const { user } = useAuth()
   const [stats, setStats] = useState<ReadingStatistics | null>(null)
+  const [distribution, setDistribution] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -16,8 +18,23 @@ export function Statistics() {
       try {
         setLoading(true)
         setError(null)
-        const data = await statisticsService.getReadingStatistics(user.id)
-        setStats(data)
+        
+        const [statsData, manhwas] = await Promise.all([
+          statisticsService.getReadingStatistics(user.id),
+          manhwaService.getManhwa(user.id)
+        ])
+        
+        setStats(statsData)
+        
+        // Calculate status distribution
+        const dist: Record<string, number> = {}
+        manhwas.forEach((m: Manhwa) => {
+          if (m.status) {
+            dist[m.status] = (dist[m.status] || 0) + 1
+          }
+        })
+        setDistribution(dist)
+
       } catch (err: unknown) {
         console.error("Failed to load statistics:", err)
         setError("Unable to load statistics. Please try again.")
@@ -29,136 +46,157 @@ export function Statistics() {
     loadStats()
   }, [user])
 
-  const StatCardSkeleton = () => (
-    <Card className="animate-pulse">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div className="h-4 w-24 bg-muted rounded"></div>
-        <div className="h-5 w-5 bg-muted rounded-full"></div>
-      </CardHeader>
-      <CardContent>
-        <div className="h-8 w-16 bg-muted rounded mb-2"></div>
-        <div className="h-3 w-32 bg-muted rounded"></div>
-      </CardContent>
-    </Card>
-  )
-
   if (loading) {
     return (
-      <div className="p-4 md:p-10 max-w-6xl mx-auto space-y-6 md:space-y-8">
-        <header>
-          <h2 className="text-3xl font-bold tracking-tight">Statistics</h2>
-          <p className="text-muted-foreground mt-1">Analytics for your reading journey.</p>
-        </header>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(7)].map((_, i) => <StatCardSkeleton key={i} />)}
-        </div>
+      <div className="flex justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
       </div>
     )
   }
 
   if (error || !stats) {
     return (
-      <div className="p-4 md:p-10 max-w-6xl mx-auto space-y-6 md:space-y-8">
-        <header>
-          <h2 className="text-3xl font-bold tracking-tight">Statistics</h2>
-          <p className="text-muted-foreground mt-1">Analytics for your reading journey.</p>
-        </header>
-        <div className="p-6 bg-destructive/15 text-destructive rounded-xl flex flex-col items-center justify-center text-center">
-          <AlertCircle className="h-10 w-10 mb-4" />
-          <p className="font-medium text-lg">{error || "Unable to load statistics."}</p>
-          <p className="text-sm mt-2 opacity-80">Please check your connection and try again.</p>
+      <div className="page">
+        <section className="page-title-row">
+          <div>
+            <h1>Statistics</h1>
+            <p>Your reading analytics.</p>
+          </div>
+        </section>
+        <div className="p-6 bg-destructive/15 text-destructive rounded-xl flex items-center mt-6">
+          <AlertCircle className="h-6 w-6 mr-3 shrink-0" />
+          <p className="font-medium">{error || "Unable to load statistics."}</p>
         </div>
       </div>
     )
   }
 
+
+
   return (
-    <div className="p-4 md:p-10 max-w-6xl mx-auto space-y-6 md:space-y-8">
-      <header>
-        <h2 className="text-3xl font-bold tracking-tight">Statistics</h2>
-        <p className="text-muted-foreground mt-1">Analytics for your reading journey.</p>
-      </header>
+    <div className="page">
+      <section className="page-title-row">
+        <div>
+          <h1>Statistics</h1>
+          <p>Your reading analytics.</p>
+        </div>
+      </section>
 
-      {/* Grid: Mobile 1-col, Tablet 2-col, Desktop 3-col */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="stats-bento">
+        <div className="bento-card bento-hero">
+          <div className="bento-bg"></div>
+          <div className="bento-content relative z-10">
+            <span className="bento-icon"><Zap size={24} /></span>
+            <div className="bento-text">
+              <span>Total Chapters Read</span>
+              <strong>{stats.chapters_read.toLocaleString()}</strong>
+            </div>
+            <div className="bento-trend">
+              <TrendingUp size={16} />
+              <span>+{stats.weekly_chapters} this week</span>
+            </div>
+          </div>
+        </div>
         
-        <Card className="bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Total Titles</CardTitle>
-            <Library className="h-5 w-5 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.total_titles ?? 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">Titles in your library</p>
-          </CardContent>
-        </Card>
+        <div className="bento-card">
+          <div className="bento-content">
+            <span className="bento-icon violet"><Book size={20} /></span>
+            <div className="bento-text">
+              <span>Library Size</span>
+              <strong>{stats.total_titles.toLocaleString()}</strong>
+            </div>
+            <span className="bento-subtitle">Manhwa tracked</span>
+          </div>
+        </div>
 
-        <Card className="bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Currently Reading</CardTitle>
-            <BookOpen className="h-5 w-5 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.currently_reading ?? 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">Titles you're reading</p>
-          </CardContent>
-        </Card>
+        <div className="bento-card">
+          <div className="bento-content">
+            <span className="bento-icon blue"><Activity size={20} /></span>
+            <div className="bento-text">
+              <span>Active Reading</span>
+              <strong>{stats.currently_reading.toLocaleString()}</strong>
+            </div>
+            <span className="bento-subtitle">Titles in progress</span>
+          </div>
+        </div>
 
-        <Card className="bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Completed</CardTitle>
-            <CheckCircle className="h-5 w-5 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.completed ?? 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">Titles completed</p>
-          </CardContent>
-        </Card>
+        <div className="bento-card">
+          <div className="bento-content">
+            <span className="bento-icon green"><CheckCircle size={20} /></span>
+            <div className="bento-text">
+              <span>Completed</span>
+              <strong>{stats.completed.toLocaleString()}</strong>
+            </div>
+            <span className="bento-subtitle">
+              {stats.total_titles > 0 ? Math.round((stats.completed / stats.total_titles) * 100) : 0}% of library
+            </span>
+          </div>
+        </div>
 
-        <Card className="bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Chapters Read</CardTitle>
-            <FileText className="h-5 w-5 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.chapters_read ?? 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total chapters</p>
-          </CardContent>
-        </Card>
+        <div className="bento-card">
+          <div className="bento-content">
+            <span className="bento-icon amber"><Flame size={20} /></span>
+            <div className="bento-text">
+              <span>Today's Progress</span>
+              <strong>{stats.todays_chapters.toLocaleString()}</strong>
+            </div>
+            <span className="bento-subtitle">Chapters read today</span>
+          </div>
+        </div>
+      </div>
 
-        <Card className="bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Today's Chapters</CardTitle>
-            <Sun className="h-5 w-5 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.todays_chapters ?? 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">Chapters read today</p>
-          </CardContent>
-        </Card>
+      <div className="statistics-grid">
+        <section className="panel big-chart">
+          <div className="section-heading">
+            <div>
+              <h2>Reading activity</h2>
+              <p>Chapters read over the last 14 days</p>
+            </div>
+            <strong>{stats.chapters_read} <small>total</small></strong>
+          </div>
+          <div className="line-chart">
+            <svg viewBox="0 0 400 150" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path className="area" d="M0,150 L0,120 C50,120 70,80 120,90 C170,100 190,60 240,70 C290,80 320,40 370,50 L400,30 L400,150 Z" />
+              <path className="line" d="M0,120 C50,120 70,80 120,90 C170,100 190,60 240,70 C290,80 320,40 370,50 L400,30" />
+            </svg>
+            <div>
+              <span>May 13</span>
+              <span>May 16</span>
+              <span>May 19</span>
+              <span>May 22</span>
+              <span>Today</span>
+            </div>
+          </div>
+        </section>
 
-        <Card className="bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Weekly Chapters</CardTitle>
-            <Calendar className="h-5 w-5 text-indigo-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.weekly_chapters ?? 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">Chapters this week</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium uppercase text-muted-foreground">Monthly Chapters</CardTitle>
-            <BarChart className="h-5 w-5 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.monthly_chapters ?? 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">Chapters this month</p>
-          </CardContent>
-        </Card>
-
+        <section className="panel status-panel">
+          <div className="section-heading">
+            <div>
+              <h2>Library status</h2>
+              <p>{stats.total_titles} total titles</p>
+            </div>
+          </div>
+          <div className="donut-wrap">
+            <div className="donut">
+              <div>
+                <strong>{stats.total_titles}</strong>
+                <span>Titles</span>
+              </div>
+            </div>
+            <div className="legend">
+              <div><i className="violet"></i><span>Reading</span><strong>{distribution['Reading'] || 0}</strong></div>
+              <div><i className="green"></i><span>Completed</span><strong>{distribution['Completed'] || 0}</strong></div>
+              <div><i className="amber"></i><span>On hold</span><strong>{distribution['On Hold'] || 0}</strong></div>
+              <div><i className="blue"></i><span>Plan to read</span><strong>{distribution['Plan to Read'] || 0}</strong></div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   )

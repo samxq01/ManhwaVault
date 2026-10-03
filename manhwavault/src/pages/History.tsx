@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { historyService, type HistoryWithManhwa } from "@/services/historyService"
-import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
+import { getCoverColorClass } from "@/utils/coverColors"
 import { CoverImage } from "@/components/CoverImage"
-import { Loader2, Search, ArrowRight, AlertCircle, Clock } from "lucide-react"
+import { Loader2, Search, ChevronRight, AlertCircle, Calendar } from "lucide-react"
 
 export function History() {
   const { user } = useAuth()
@@ -30,78 +29,102 @@ export function History() {
   }, [user])
 
   const filteredHistory = useMemo(() => {
-    if (!searchQuery.trim()) return history
-    const query = searchQuery.toLowerCase()
-    return history.filter(record => 
-      record.manhwa?.title.toLowerCase().includes(query)
-    )
+    let result = history
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(record => 
+        record.manhwa?.title.toLowerCase().includes(query)
+      )
+    }
+
+    // Group by Date
+    const grouped = result.reduce((acc, record) => {
+      const dateString = new Date(record.created_at).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric"
+      })
+      if (!acc[dateString]) acc[dateString] = []
+      acc[dateString].push(record)
+      return acc
+    }, {} as Record<string, HistoryWithManhwa[]>)
+
+    // Sort groups descending by date
+    return Object.entries(grouped).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
   }, [history, searchQuery])
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-    }).format(date)
-  }
-
   return (
-    <div className="p-4 md:p-10 max-w-4xl mx-auto space-y-6">
-      <header>
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Reading History</h2>
-        <p className="text-muted-foreground mt-1 text-sm md:text-base">Track all your chapter updates over time.</p>
-      </header>
+    <div className="page">
+      <section className="page-title-row">
+        <div>
+          <h1>History</h1>
+          <p>Your reading timeline.</p>
+        </div>
+      </section>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        <Input 
-          placeholder="Filter by title..." 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 h-12 text-base"
-        />
+      <div className="search-bar mb-6">
+        <label>
+          <Search size={18} />
+          <input 
+            placeholder="Filter by title..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </label>
       </div>
 
       {error && (
-        <div className="p-4 bg-destructive/15 text-destructive rounded-lg flex items-center">
-          <AlertCircle className="h-5 w-5 mr-3 shrink-0" />
-          <p className="font-medium">{error}</p>
+        <div className="p-4 bg-destructive/15 text-destructive rounded-lg flex items-center font-medium mb-6">
+          <AlertCircle size={18} className="mr-2 shrink-0" />
+          {error}
         </div>
       )}
 
       {loading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
         </div>
       ) : filteredHistory.length === 0 ? (
-        <div className="text-center py-20 text-muted-foreground flex flex-col items-center">
-          <Clock className="h-12 w-12 text-muted mb-4" />
-          <p>No history records found.</p>
+        <div className="empty-state mt-8">
+          <span><Search size={24} /></span>
+          <h2>No history records</h2>
+          <p>Your reading timeline is empty.</p>
         </div>
       ) : (
-        <div className="space-y-3 pb-20 md:pb-0">
-          {filteredHistory.map((record) => (
-            <Card key={record.id} className="p-4 flex items-center gap-4 hover:bg-accent/30 transition-colors">
-              <div className="w-12 h-16 bg-muted rounded overflow-hidden shrink-0 hidden sm:block">
-                <CoverImage src={record.manhwa?.cover_url} alt={`Cover of ${record.manhwa?.title || 'Unknown'}`} />
+        <div className="history-timeline">
+          {filteredHistory.map(([date, records]) => (
+            <div className="history-group" key={date}>
+              <div className="history-date">
+                <span className="date-badge"><Calendar size={14} /> {date}</span>
+                <span className="line"></span>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-base md:text-lg truncate">{record.manhwa?.title || "Unknown Title"}</h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formatDate(record.created_at)}
-                </p>
+              <div className="history-items">
+                {records.map(record => (
+                  <article className="history-item" key={record.id}>
+                    <div className={`cover cover-small shrink-0 ${getCoverColorClass(record.manhwa?.title || '')}`}>
+                      {record.manhwa?.cover_url ? (
+                        <CoverImage src={record.manhwa.cover_url} alt={record.manhwa.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <strong className="z-10">{record.manhwa?.title.substring(0, 2).toUpperCase() || "??"}</strong>
+                      )}
+                    </div>
+                    <div className="history-info min-w-0">
+                      <strong className="truncate block" title={record.manhwa?.title}>{record.manhwa?.title || "Unknown Title"}</strong>
+                      <span className="flex items-center gap-1.5 flex-wrap">
+                        Chapter {record.previous_chapter} 
+                        <ChevronRight size={12} className="text-muted" /> 
+                        <span className={record.new_chapter > record.previous_chapter ? "text-cyan-400" : ""}>
+                          Chapter {record.new_chapter}
+                        </span>
+                      </span>
+                      <small className="block">
+                        {new Date(record.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                      </small>
+                    </div>
+                  </article>
+                ))}
               </div>
-              <div className="flex items-center gap-2 md:gap-4 font-medium tabular-nums shrink-0">
-                <span className="text-muted-foreground">Ch. {record.previous_chapter}</span>
-                <ArrowRight className="h-4 w-4 text-primary" />
-                <span className={record.new_chapter > record.previous_chapter ? "text-green-500" : "text-destructive"}>
-                  Ch. {record.new_chapter}
-                </span>
-              </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}

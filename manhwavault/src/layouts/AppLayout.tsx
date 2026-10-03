@@ -1,108 +1,153 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom"
-import { LayoutDashboard, Library, Clock, History, BarChart2, Settings, LogOut, Wifi, WifiOff } from "lucide-react"
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
+import { LayoutDashboard, Library, Zap, History, BarChart2, Settings, Book, Flame, MoreHorizontal, ChevronRight, Search, LogOut } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { Button } from "@/components/ui/button"
 import { PwaPrompt } from "@/components/PwaPrompt"
 import { useNetworkStatus } from "@/hooks/useNetworkStatus"
+import { useEffect, useState } from "react"
 
 const NAV_ITEMS = [
-  { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { name: "Library", path: "/library", icon: Library },
-  { name: "Quick Update", path: "/quick-update", icon: Clock },
-  { name: "History", path: "/history", icon: History },
-  { name: "Statistics", path: "/statistics", icon: BarChart2 },
-  { name: "Settings", path: "/settings", icon: Settings },
+  { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+  { id: "library", label: "Library", path: "/library", icon: Library },
+  { id: "quick", label: "Quick Update", path: "/quick-update", icon: Zap },
+  { id: "history", label: "History", path: "/history", icon: History },
+  { id: "statistics", label: "Statistics", path: "/statistics", icon: BarChart2 },
+  { id: "settings", label: "Settings", path: "/settings", icon: Settings },
 ]
 
-function NetworkIndicator({ isOnline }: { isOnline: boolean }) {
-  return (
-    <div className={`flex items-center text-xs font-medium px-2 py-1 rounded-full ${isOnline ? 'bg-green-500/10 text-green-500' : 'bg-destructive/10 text-destructive'}`}>
-      {isOnline ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
-      {isOnline ? 'Online' : 'Offline'}
-    </div>
-  )
-}
-
 export function AppLayout() {
-  const { signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const isOnline = useNetworkStatus()
+  const [showLogout, setShowLogout] = useState(false)
 
   const handleLogout = async () => {
     await signOut()
     navigate("/login")
   }
 
+  const currentRoute = NAV_ITEMS.find(n => n.path === location.pathname)?.label || "Dashboard"
+  
+  // Extract initials and name for avatar
+  const userName = user?.user_metadata?.first_name || user?.email?.split('@')[0] || "User"
+  const userEmail = user?.email || ""
+  const initials = userName.substring(0, 2).toUpperCase()
+
+  // Handle keyboard shortcut for Quick Update
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key.toLowerCase() === 'q' && 
+        !(e.target instanceof HTMLInputElement) && 
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
+        navigate('/quick-update')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [navigate])
+
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col border-r bg-card h-screen sticky top-0">
-        <div className="p-6 flex flex-col gap-2">
-          <h1 className="text-2xl font-bold text-primary">ManhwaVault</h1>
-          <div className="self-start">
-            <NetworkIndicator isOnline={isOnline} />
-          </div>
+    <div className="app-shell">
+      <div className="ambient-orb ambient-one"></div>
+      <div className="ambient-orb ambient-two"></div>
+      
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <div className="logo">
+          <span className="logo-mark"><Book size={19} /></span>
+          <span>Manhwa<span>Vault</span></span>
         </div>
-        <nav className="flex-1 space-y-1 px-4">
+        
+        <nav className="side-nav" aria-label="Primary navigation">
+          <span className="nav-label">Workspace</span>
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
-              className={({ isActive }) =>
-                `flex items-center space-x-3 rounded-lg px-4 py-3 transition-colors ${
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                }`
-              }
+              className={({ isActive }) => (isActive ? "active" : "")}
             >
-              <item.icon className="h-5 w-5" />
-              <span className="font-medium">{item.name}</span>
+              <item.icon size={18} />
+              <span>{item.label}</span>
+              {item.id === "quick" && <kbd>Q</kbd>}
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 mt-auto">
-          <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive" onClick={handleLogout}>
-            <LogOut className="h-5 w-5 mr-3" />
-            Logout
-          </Button>
+        
+        <div className="sidebar-footer">
+          <div className="streak">
+            <span className="streak-icon"><Flame size={16} /></span>
+            <div>
+              <strong>{isOnline ? 'Online' : 'Offline'}</strong>
+              <span>{isOnline ? 'Network connected' : 'Network disconnected'}</span>
+            </div>
+          </div>
+          
+          <div className="profile-mini cursor-pointer relative" onClick={() => setShowLogout(!showLogout)}>
+            <span className="avatar">{initials}</span>
+            <div>
+              <strong>{userName}</strong>
+              <span>{userEmail}</span>
+            </div>
+            <MoreHorizontal size={16} />
+            
+            {showLogout && (
+              <div className="absolute bottom-full mb-2 right-0 bg-surface border border-border rounded-md shadow-lg overflow-hidden z-50 min-w-[120px]">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleLogout(); }} 
+                  className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-surface-3 flex items-center gap-2"
+                >
+                  <LogOut size={14} /> Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 pb-20 md:pb-0 overflow-y-auto">
-        <header className="md:hidden flex items-center justify-between p-4 border-b bg-card">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-xl font-bold text-primary">ManhwaVault</h1>
-            <NetworkIndicator isOnline={isOnline} />
+      <main>
+        {/* Topbar */}
+        <header className="topbar">
+          <div className="mobile-logo">
+            <div className="logo px-0">
+              <span className="logo-mark"><Book size={19} /></span>
+            </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground hover:text-destructive">
-            <LogOut className="h-5 w-5" />
-          </Button>
+          
+          <span className="breadcrumb">
+            Vault <ChevronRight size={13} /> <strong>{currentRoute}</strong>
+          </span>
+          
+          <div className="top-actions">
+            <label className="top-search hidden md:flex">
+              <Search size={16} />
+              <input aria-label="Search everything" placeholder="Search anything..." />
+              <kbd>⌘ K</kbd>
+            </label>
+            <button className="icon-button" aria-label="Notifications" onClick={handleLogout} title="Logout">
+              <LogOut size={16} />
+            </button>
+            <span className="avatar mobile-avatar">{initials}</span>
+          </div>
         </header>
+
         <Outlet />
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-card/95 backdrop-blur z-50 pb-safe">
-        <div className="flex items-center justify-around p-2">
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`
-              }
-            >
-              <item.icon className="h-6 w-6 mb-1" />
-              <span className="text-[10px] font-medium hidden sm:block">{item.name}</span>
-            </NavLink>
-          ))}
-        </div>
+      <nav className="bottom-nav">
+        {NAV_ITEMS.filter(n => ['dashboard', 'library', 'quick', 'statistics', 'settings'].includes(n.id)).map(n => (
+          <NavLink
+            key={n.path}
+            to={n.path}
+            className={({ isActive }) => `${isActive ? "active" : ""} ${n.id === "quick" ? "quick-nav" : ""}`}
+          >
+            <span><n.icon size={n.id === 'quick' ? 20 : 18} /></span>
+            <small>{n.id === 'statistics' ? 'Stats' : n.label}</small>
+          </NavLink>
+        ))}
       </nav>
       
       <PwaPrompt />

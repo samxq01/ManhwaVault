@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
 import { historyService, type HistoryWithManhwa } from "@/services/historyService"
 import { Loader2, BookOpen, CheckCircle, Zap, Activity, ChevronRight, Sparkles } from "lucide-react"
+import { getCoverColorClass } from "@/utils/coverColors"
 import type { Manhwa } from "@/types"
 import { useNavigate } from "react-router-dom"
 import { ChapterControls } from "@/components/ChapterControls"
@@ -189,7 +190,7 @@ export function Dashboard() {
               
               return (
                 <article key={m.id} className="continue-item">
-                  <div className="cover cover-small cover-slate shrink-0">
+                  <div className={`cover cover-small shrink-0 ${getCoverColorClass(m.title)}`}>
                     {m.cover_url ? (
                       <CoverImage src={m.cover_url} alt={m.title} className="w-full h-full object-cover" />
                     ) : (
@@ -257,7 +258,7 @@ export function Dashboard() {
                if (!m) return null;
                return (
                  <div key={h.id} className="recent-card cursor-pointer hover:bg-[#13141a] transition-colors" onClick={() => navigate(`/manhwa/${m.id}`)}>
-                   <div className="cover cover-small cover-slate shrink-0">
+                   <div className={`cover cover-small shrink-0 ${getCoverColorClass(m.title)}`}>
                      {m.cover_url ? (
                        <CoverImage src={m.cover_url} alt={m.title} className="w-full h-full object-cover" />
                      ) : (

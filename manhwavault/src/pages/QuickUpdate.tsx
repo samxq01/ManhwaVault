@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo } from "react"
-import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { CoverImage } from "@/components/CoverImage"
-import { Loader2, Search, AlertCircle } from "lucide-react"
+import { Search, Loader2, AlertCircle } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
+import { getCoverColorClass } from "@/utils/coverColors"
 import { ChapterControls } from "@/components/ChapterControls"
+import { CoverImage } from "@/components/CoverImage"
 import type { Manhwa } from "@/types"
 
 export function QuickUpdate() {
@@ -20,13 +19,11 @@ export function QuickUpdate() {
       if (!user) return
       try {
         setLoading(true)
-        // Sort by updated_at so most recently updated are at top
         const data = await manhwaService.getManhwa(user.id)
-        // Filter only "Reading" or maybe active ones?
-        // Usually Quick Update shows Reading, but we can show all and let search filter.
-        // Let's default to showing "Reading" titles or all if they prefer. The prompt says "Display all relevant titles".
-        // I will filter out "Completed" or "Dropped" unless searched, or just show all reading at top.
+        // Quick update usually focuses on Reading or On Hold
         const relevant = data.filter(m => m.status === "Reading" || m.status === "On Hold")
+        // Sort by recently updated
+        relevant.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
         setManhwas(relevant)
       } catch (err: any) {
         setError(err.message || "Failed to load titles")
@@ -48,65 +45,77 @@ export function QuickUpdate() {
   }, [manhwas, searchQuery])
 
   const handleUpdateSuccess = (id: string, newChapter: number) => {
-    // We only need to update the local list state so it stays in sync
-    setManhwas(prev => prev.map(m => m.id === id ? { ...m, current_chapter: newChapter } : m))
+    setManhwas(prev => prev.map(m => m.id === id ? { ...m, current_chapter: newChapter, updated_at: new Date().toISOString() } : m))
+    
+    const element = document.querySelector(`[data-manhwa-id="${id}"]`)
+    if (element) {
+      element.classList.remove('chapter-updated')
+      void (element as HTMLElement).offsetWidth // trigger reflow
+      element.classList.add('chapter-updated')
+      setTimeout(() => element.classList.remove('chapter-updated'), 700)
+    }
   }
 
   const handleError = (msg: string) => {
     setError(msg)
-    // Clear error after 3 seconds
     setTimeout(() => setError(null), 3000)
   }
 
   return (
-    <div className="p-4 md:p-10 max-w-4xl mx-auto space-y-6">
-      <header>
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Quick Update</h2>
-        <p className="text-muted-foreground mt-1 md:mt-2 text-sm md:text-base">Swiftly update your reading progress.</p>
-      </header>
+    <div className="page quick-page">
+      <section className="page-title-row">
+        <div>
+          <h1>Quick Update</h1>
+          <p>Instantly update your reading progress.</p>
+        </div>
+      </section>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        <Input 
-          placeholder="Search titles..." 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 h-12 text-base md:text-lg"
-        />
+      <div className="search-bar">
+        <label>
+          <Search size={18} />
+          <input 
+            placeholder="Search your active titles..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </label>
       </div>
 
       {error && (
-        <div className="p-3 md:p-4 bg-destructive/15 text-destructive rounded-lg flex items-center text-sm md:text-base">
-          <AlertCircle className="h-5 w-5 mr-3 shrink-0" />
-          <p className="font-medium">{error}</p>
+        <div className="p-4 bg-destructive/15 text-destructive rounded-lg font-medium mb-6 flex items-center">
+          <AlertCircle size={18} className="mr-2 shrink-0" />
+          {error}
         </div>
       )}
 
       {loading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
         </div>
       ) : filteredManhwas.length === 0 ? (
-        <div className="text-center py-20 text-muted-foreground">
-          No relevant titles found.
+        <div className="empty-state mt-8">
+          <span><Search size={24} /></span>
+          <h2>No matching titles</h2>
+          <p>Try another title or ensure you have active reading titles.</p>
+          <button className="button button-secondary" onClick={() => setSearchQuery("")}>
+            Clear search
+          </button>
         </div>
       ) : (
-        <div className="space-y-3 md:space-y-4 pb-20 md:pb-0">
+        <div className="quick-list">
           {filteredManhwas.map((title) => (
-            <Card key={title.id} className="flex items-center p-2 md:p-4 gap-3 md:gap-4 transition-colors hover:bg-accent/30 shadow-sm border-accent/20">
-              <div className="w-14 h-20 md:w-16 md:h-24 bg-muted rounded-md flex-shrink-0 overflow-hidden">
-                <CoverImage src={title.cover_url} alt={`Cover of ${title.title}`} />
+            <article key={title.id} className="quick-item" data-manhwa-id={title.id}>
+              <div className={`cover cover-small shrink-0 ${getCoverColorClass(title.title)}`}>
+                {title.cover_url ? (
+                  <CoverImage src={title.cover_url} alt={title.title} className="w-full h-full object-cover" />
+                ) : (
+                  <strong className="z-10">{title.title.substring(0, 2).toUpperCase()}</strong>
+                )}
               </div>
               
-              <div className="flex-1 min-w-0 py-1">
-                <h3 className="font-bold text-base md:text-xl truncate leading-tight mb-1" title={title.title}>
-                  {title.title}
-                </h3>
-                <p className="text-xs md:text-sm text-muted-foreground font-medium flex items-center">
-                  <span className="hidden sm:inline">Current Chapter </span>
-                  <span className="sm:hidden">Ch. </span>
-                  {title.current_chapter} {title.total_chapters ? `/ ${title.total_chapters}` : ""}
-                </p>
+              <div className="quick-info min-w-0">
+                <strong className="truncate block" title={title.title}>{title.title}</strong>
+                <span>Chapter {title.current_chapter} {title.total_chapters ? `of ${title.total_chapters}` : ""}</span>
               </div>
 
               <ChapterControls 
@@ -114,8 +123,9 @@ export function QuickUpdate() {
                 userId={user!.id}
                 onUpdateSuccess={(newChapter) => handleUpdateSuccess(title.id, newChapter)}
                 onError={handleError}
+                compact={false}
               />
-            </Card>
+            </article>
           ))}
         </div>
       )}
