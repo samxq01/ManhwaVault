@@ -153,7 +153,9 @@ export function Library() {
     return result
   }, [manhwas, searchQuery, statusFilter, typeFilter, favoritesOnly, selectedTags, sortOption])
 
-  const FilterPanel = () => (
+  // Extracting FilterPanel variables to be used inline since it relies on many states, 
+  // or define it cleanly. Since it has many states, we'll inline it.
+  const renderFilterPanel = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-lg">Filters</h3>
@@ -259,7 +261,7 @@ export function Library() {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Desktop Filters Sidebar */}
           <aside className="hidden lg:block w-64 shrink-0 border rounded-xl p-4 bg-card h-fit sticky top-6">
-            <FilterPanel />
+            {renderFilterPanel()}
           </aside>
 
           {/* Main Content Area */}
@@ -404,7 +406,7 @@ export function Library() {
             </div>
             
             <div className="max-h-[60vh] overflow-y-auto pb-4 pr-1">
-              <FilterPanel />
+              {renderFilterPanel()}
             </div>
             
             <div className="pt-4 border-t mt-2">
