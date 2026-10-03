@@ -1,5 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { AuthProvider } from "./contexts/AuthContext"
+import { ProtectedRoute } from "./components/ProtectedRoute"
 import { AppLayout } from "./layouts/AppLayout"
+import { Login } from "./pages/Login"
+import { Register } from "./pages/Register"
+import { ForgotPassword } from "./pages/ForgotPassword"
 import { Dashboard } from "./pages/Dashboard"
 import { Library } from "./pages/Library"
 import { QuickUpdate } from "./pages/QuickUpdate"
@@ -9,19 +14,27 @@ import { Settings } from "./pages/Settings"
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<AppLayout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="library" element={<Library />} />
-          <Route path="quick-update" element={<QuickUpdate />} />
-          <Route path="history" element={<History />} />
-          <Route path="statistics" element={<Statistics />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<AppLayout />}>
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="library" element={<Library />} />
+              <Route path="quick-update" element={<QuickUpdate />} />
+              <Route path="history" element={<History />} />
+              <Route path="statistics" element={<Statistics />} />
+              <Route path="settings" element={<Settings />} />
+            </Route>
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
 

@@ -1,5 +1,7 @@
-import { NavLink, Outlet } from "react-router-dom"
-import { LayoutDashboard, Library, Clock, History, BarChart2, Settings } from "lucide-react"
+import { NavLink, Outlet, useNavigate } from "react-router-dom"
+import { LayoutDashboard, Library, Clock, History, BarChart2, Settings, LogOut } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import { Button } from "@/components/ui/button"
 
 const NAV_ITEMS = [
   { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -11,10 +13,18 @@ const NAV_ITEMS = [
 ]
 
 export function AppLayout() {
+  const { signOut } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    await signOut()
+    navigate("/login")
+  }
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col border-r bg-card">
+      <aside className="hidden md:flex w-64 flex-col border-r bg-card h-screen sticky top-0">
         <div className="p-6">
           <h1 className="text-2xl font-bold text-primary">ManhwaVault</h1>
         </div>
@@ -36,15 +46,27 @@ export function AppLayout() {
             </NavLink>
           ))}
         </nav>
+        <div className="p-4 mt-auto">
+          <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive" onClick={handleLogout}>
+            <LogOut className="h-5 w-5 mr-3" />
+            Logout
+          </Button>
+        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 pb-20 md:pb-0 overflow-y-auto">
+        <header className="md:hidden flex items-center justify-between p-4 border-b bg-card">
+          <h1 className="text-xl font-bold text-primary">ManhwaVault</h1>
+          <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground hover:text-destructive">
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </header>
         <Outlet />
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-card/95 backdrop-blur z-50">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-card/95 backdrop-blur z-50 pb-safe">
         <div className="flex items-center justify-around p-2">
           {NAV_ITEMS.map((item) => (
             <NavLink
@@ -59,7 +81,7 @@ export function AppLayout() {
               }
             >
               <item.icon className="h-6 w-6 mb-1" />
-              <span className="text-[10px] font-medium">{item.name}</span>
+              <span className="text-[10px] font-medium hidden sm:block">{item.name}</span>
             </NavLink>
           ))}
         </div>
