@@ -3,11 +3,13 @@ import { useAuth } from "@/contexts/AuthContext"
 import { backupService, type BackupData } from "@/services/backupService"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, Upload, FileJson, FileSpreadsheet, AlertTriangle, CheckCircle, Clock } from "lucide-react"
+import { Download, Upload, FileJson, FileSpreadsheet, AlertTriangle, CheckCircle, Clock, Smartphone } from "lucide-react"
+import { useInstallPrompt } from "@/hooks/useInstallPrompt"
 
 export function Settings() {
   const { user } = useAuth()
   const [lastBackup, setLastBackup] = useState<string | null>(null)
+  const { installPrompt, promptInstall, isStandalone } = useInstallPrompt()
   
   const [isExporting, setIsExporting] = useState(false)
   const [isExportingCsv, setIsExportingCsv] = useState(false)
@@ -161,6 +163,30 @@ export function Settings() {
 
       <div className="grid gap-6">
         
+        {/* App Installation */}
+        {!isStandalone && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />
+                Install App
+              </CardTitle>
+              <CardDescription>Install ManhwaVault on your device for a better experience and offline access.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {installPrompt ? (
+                <Button onClick={promptInstall} className="w-full sm:w-auto">
+                  Install ManhwaVault
+                </Button>
+              ) : (
+                <div className="text-sm text-muted-foreground bg-accent/50 p-4 rounded-lg">
+                  App installation is currently unavailable. Your browser might not support it, or you may need to interact with the app more first.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Backup Status */}
         <Card>
           <CardHeader>
