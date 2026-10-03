@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { CoverImage } from "@/components/CoverImage"
 import { Loader2, Search, AlertCircle } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
@@ -94,11 +95,7 @@ export function QuickUpdate() {
           {filteredManhwas.map((title) => (
             <Card key={title.id} className="flex items-center p-2 md:p-4 gap-3 md:gap-4 transition-colors hover:bg-accent/30 shadow-sm border-accent/20">
               <div className="w-14 h-20 md:w-16 md:h-24 bg-muted rounded-md flex-shrink-0 overflow-hidden">
-                {title.cover_url ? (
-                  <img src={title.cover_url} alt={title.title} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">No Cover</div>
-                )}
+                <CoverImage src={title.cover_url} alt={`Cover of ${title.title}`} />
               </div>
               
               <div className="flex-1 min-w-0 py-1">

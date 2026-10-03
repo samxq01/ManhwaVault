@@ -6,12 +6,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { ImagePlus, X } from "lucide-react"
 import type { Manhwa, ManhwaInsert, Tag } from "@/types"
 
 interface ManhwaFormProps {
   initialData?: Manhwa
   initialTags?: Tag[]
-  onSubmit: (data: ManhwaInsert, tagNames: string[]) => Promise<void>
+  onSubmit: (data: ManhwaInsert, tagNames: string[], coverFile: File | null) => Promise<void>
   isLoading: boolean
 }
 
@@ -34,6 +35,35 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
   })
 
   const [tagsString, setTagsString] = useState(initialTags.map(t => t.name).join(", "))
+  
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(initialData?.cover_url || null)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Simple frontend validation before form submission
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      setError("Invalid file type. Only JPEG, PNG, WEBP, and GIF are allowed.")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Cover image must be smaller than 5 MB.")
+      return
+    }
+
+    setError(null)
+    setCoverFile(file)
+    setCoverPreview(URL.createObjectURL(file))
+  }
+
+  const clearCover = () => {
+    setCoverFile(null)
+    setCoverPreview(null)
+    setFormData(prev => ({ ...prev, cover_url: "" }))
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
@@ -78,7 +108,7 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
         .map(t => t.trim())
         .filter(t => t.length > 0)
         
-      await onSubmit(submitData as ManhwaInsert, parsedTags)
+      await onSubmit(submitData as ManhwaInsert, parsedTags, coverFile)
     } catch (err: any) {
       setError(err.message || "An error occurred while saving.")
     }
@@ -146,9 +176,34 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
               <Input id="rating" name="rating" type="number" min="0" max="10" step="0.1" value={formData.rating || ''} onChange={handleChange} />
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="cover_url">Cover URL</Label>
-              <Input id="cover_url" name="cover_url" type="url" value={formData.cover_url || ''} onChange={handleChange} placeholder="https://..." />
+            <div className="space-y-3 md:col-span-2">
+              <Label>Cover Image</Label>
+              
+              {coverPreview ? (
+                <div className="relative w-32 h-48 rounded-lg overflow-hidden border">
+                  <img src={coverPreview} alt={formData.title ? `Cover of ${formData.title}` : "Cover preview"} className="w-full h-full object-cover" />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-80 hover:opacity-100"
+                    onClick={clearCover}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center w-full max-w-sm">
+                  <label htmlFor="cover-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <ImagePlus className="w-8 h-8 mb-2 text-muted-foreground" />
+                      <p className="mb-1 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                      <p className="text-xs text-muted-foreground">JPEG, PNG, WEBP (Max 5MB)</p>
+                    </div>
+                    <input id="cover-upload" type="file" accept="image/jpeg, image/png, image/webp, image/gif" className="hidden" onChange={handleFileChange} />
+                  </label>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2 md:col-span-2">

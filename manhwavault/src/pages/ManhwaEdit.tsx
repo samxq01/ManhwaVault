@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
 import { tagService } from "@/services/tagService"
+import { storageService } from "@/services/storageService"
 import { ManhwaForm } from "@/components/ManhwaForm"
 import { Loader2, AlertCircle } from "lucide-react"
 import type { Manhwa, ManhwaInsert, Tag } from "@/types"
@@ -42,11 +43,26 @@ export function ManhwaEdit() {
     loadManhwa()
   }, [id, user])
 
-  const handleSubmit = async (data: Omit<ManhwaInsert, "user_id">, tagNames: string[]) => {
-    if (!user || !id) return
+  const handleSubmit = async (data: Omit<ManhwaInsert, "user_id">, tagNames: string[], coverFile: File | null) => {
+    if (!user || !id || !manhwa) return
     setSaving(true)
     try {
-      await manhwaService.updateManhwa(id, user.id, data)
+      let coverUrlToSave = data.cover_url
+      
+      // If a new cover is provided
+      if (coverFile) {
+        coverUrlToSave = await storageService.uploadManhwaCover(coverFile, user.id, id)
+      }
+
+      await manhwaService.updateManhwa(id, user.id, {
+        ...data,
+        cover_url: coverUrlToSave
+      })
+
+      // Clean up old cover if it was changed or removed
+      if ((coverFile || data.cover_url === "") && manhwa.cover_url) {
+        await storageService.deleteManhwaCoverByUrl(manhwa.cover_url).catch(e => console.error(e))
+      }
 
       const existingTags = await tagService.getTags(user.id)
       const tagIds: string[] = []

@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
 import { tagService } from "@/services/tagService"
 import { ChapterControls } from "@/components/ChapterControls"
+import { CoverImage } from "@/components/CoverImage"
 import type { Manhwa, Tag } from "@/types"
 
 export function Library() {
@@ -324,13 +325,7 @@ export function Library() {
                   <Link key={item.id} to={`/manhwa/${item.id}`} className="block group">
                     <Card className="overflow-hidden flex flex-col h-full hover:border-primary/50 transition-all shadow-sm hover:shadow-md">
                       <div className="aspect-[2/3] bg-muted relative">
-                        {item.cover_url ? (
-                          <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-secondary/50 text-muted-foreground text-xs p-4 text-center">
-                            No Cover
-                          </div>
-                        )}
+                        <CoverImage src={item.cover_url} alt={`Cover of ${item.title}`} />
                         <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         
                         {item.rating && (

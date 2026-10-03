@@ -3,8 +3,10 @@ import { useParams, useNavigate, Link } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
 import { tagService } from "@/services/tagService"
+import { storageService } from "@/services/storageService"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { CoverImage } from "@/components/CoverImage"
 import { ArrowLeft, Edit, Trash2, Heart, Loader2, AlertCircle } from "lucide-react"
 import type { Manhwa, Tag } from "@/types"
 
@@ -62,6 +64,7 @@ export function ManhwaDetails() {
       setDeleting(true)
       try {
         await manhwaService.deleteManhwa(manhwa.id, user.id)
+        await storageService.deleteAllManhwaCovers(user.id, manhwa.id).catch(e => console.error(e))
         navigate("/library")
       } catch (err: any) {
         setError(err.message || "Failed to delete title.")
@@ -114,13 +117,7 @@ export function ManhwaDetails() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-4">
           <div className="aspect-[2/3] rounded-lg overflow-hidden border bg-muted relative">
-            {manhwa.cover_url ? (
-              <img src={manhwa.cover_url} alt={manhwa.title} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                No Cover Image
-              </div>
-            )}
+            <CoverImage src={manhwa.cover_url} alt={`Cover of ${manhwa.title}`} />
             <Button 
               variant="ghost" 
               size="icon" 

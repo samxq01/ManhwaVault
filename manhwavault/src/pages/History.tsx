@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { historyService, type HistoryWithManhwa } from "@/services/historyService"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
+import { CoverImage } from "@/components/CoverImage"
 import { Loader2, Search, ArrowRight, AlertCircle, Clock } from "lucide-react"
 
 export function History() {
@@ -85,11 +86,7 @@ export function History() {
           {filteredHistory.map((record) => (
             <Card key={record.id} className="p-4 flex items-center gap-4 hover:bg-accent/30 transition-colors">
               <div className="w-12 h-16 bg-muted rounded overflow-hidden shrink-0 hidden sm:block">
-                {record.manhwa?.cover_url ? (
-                  <img src={record.manhwa.cover_url} alt={record.manhwa.title} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[9px] text-muted-foreground">No Cover</div>
-                )}
+                <CoverImage src={record.manhwa?.cover_url} alt={`Cover of ${record.manhwa?.title || 'Unknown'}`} />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-base md:text-lg truncate">{record.manhwa?.title || "Unknown Title"}</h3>
