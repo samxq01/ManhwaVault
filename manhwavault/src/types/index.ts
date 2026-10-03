@@ -29,3 +29,15 @@ export type ReadingHistory = {
 }
 
 export type ReadingHistoryInsert = Omit<ReadingHistory, 'id' | 'created_at'>
+
+export type Tag = {
+  id: string
+  user_id: string
+  name: string
+  created_at: string
+}
+
+export type ManhwaTag = {
+  manhwa_id: string
+  tag_id: string
+}

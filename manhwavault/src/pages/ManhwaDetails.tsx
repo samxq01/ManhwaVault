@@ -2,10 +2,11 @@ import { useState, useEffect } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
+import { tagService } from "@/services/tagService"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ArrowLeft, Edit, Trash2, Heart, Loader2, AlertCircle } from "lucide-react"
-import type { Manhwa } from "@/types"
+import type { Manhwa, Tag } from "@/types"
 
 export function ManhwaDetails() {
   const { id } = useParams<{ id: string }>()
@@ -13,6 +14,7 @@ export function ManhwaDetails() {
   const navigate = useNavigate()
   
   const [manhwa, setManhwa] = useState<Manhwa | null>(null)
+  const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -21,9 +23,15 @@ export function ManhwaDetails() {
     async function loadManhwa() {
       if (!user || !id) return
       try {
-        const data = await manhwaService.getManhwaById(id, user.id)
+        const [data, manhwaTagsList] = await Promise.all([
+          manhwaService.getManhwaById(id, user.id),
+          tagService.getManhwaTags(user.id)
+        ])
+        
         if (data) {
           setManhwa(data)
+          const mt = manhwaTagsList.find(x => x.manhwa_id === data.id)
+          if (mt) setTags(mt.tags)
         } else {
           setError("Title not found.")
         }
@@ -141,6 +149,18 @@ export function ManhwaDetails() {
                 <div className="text-sm text-muted-foreground mb-1">Chapters</div>
                 <div className="font-medium">{manhwa.current_chapter} / {manhwa.total_chapters || "?"}</div>
               </div>
+              {tags.length > 0 && (
+                <div>
+                  <div className="text-sm text-muted-foreground mb-2">Tags</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tags.map(tag => (
+                      <span key={tag.id} className="inline-block px-2 py-0.5 rounded border border-border text-[11px] text-muted-foreground bg-accent/20">
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

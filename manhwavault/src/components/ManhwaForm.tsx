@@ -6,15 +6,16 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import type { Manhwa, ManhwaInsert } from "@/types"
+import type { Manhwa, ManhwaInsert, Tag } from "@/types"
 
 interface ManhwaFormProps {
   initialData?: Manhwa
-  onSubmit: (data: ManhwaInsert) => Promise<void>
+  initialTags?: Tag[]
+  onSubmit: (data: ManhwaInsert, tagNames: string[]) => Promise<void>
   isLoading: boolean
 }
 
-export function ManhwaForm({ initialData, onSubmit, isLoading }: ManhwaFormProps) {
+export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading }: ManhwaFormProps) {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   
@@ -31,6 +32,8 @@ export function ManhwaForm({ initialData, onSubmit, isLoading }: ManhwaFormProps
     notes: initialData?.notes || "",
     is_favorite: initialData?.is_favorite || false,
   })
+
+  const [tagsString, setTagsString] = useState(initialTags.map(t => t.name).join(", "))
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
@@ -66,12 +69,16 @@ export function ManhwaForm({ initialData, onSubmit, isLoading }: ManhwaFormProps
     }
 
     try {
-      // Pass the valid data up (user_id is handled in the page wrapper)
       const submitData: any = { ...formData }
       if (!submitData.total_chapters) submitData.total_chapters = null
       if (!submitData.rating) submitData.rating = null
       
-      await onSubmit(submitData as ManhwaInsert)
+      const parsedTags = tagsString
+        .split(",")
+        .map(t => t.trim())
+        .filter(t => t.length > 0)
+        
+      await onSubmit(submitData as ManhwaInsert, parsedTags)
     } catch (err: any) {
       setError(err.message || "An error occurred while saving.")
     }
@@ -109,6 +116,7 @@ export function ManhwaForm({ initialData, onSubmit, isLoading }: ManhwaFormProps
                 <option value="Manhua">Manhua</option>
                 <option value="Webtoon">Webtoon</option>
                 <option value="Novel">Novel</option>
+                <option value="Other">Other</option>
               </Select>
             </div>
 
@@ -141,6 +149,16 @@ export function ManhwaForm({ initialData, onSubmit, isLoading }: ManhwaFormProps
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="cover_url">Cover URL</Label>
               <Input id="cover_url" name="cover_url" type="url" value={formData.cover_url || ''} onChange={handleChange} placeholder="https://..." />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="tags">Tags (comma separated)</Label>
+              <Input 
+                id="tags" 
+                value={tagsString} 
+                onChange={(e) => setTagsString(e.target.value)} 
+                placeholder="Action, Romance, Murim" 
+              />
             </div>
 
             <div className="space-y-2 md:col-span-2">

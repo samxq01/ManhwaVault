@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
+import { tagService } from "@/services/tagService"
 import { ManhwaForm } from "@/components/ManhwaForm"
 import type { ManhwaInsert } from "@/types"
 
@@ -10,7 +11,7 @@ export function ManhwaAdd() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (data: Omit<ManhwaInsert, "user_id">) => {
+  const handleSubmit = async (data: Omit<ManhwaInsert, "user_id">, tagNames: string[]) => {
     if (!user) return
     setLoading(true)
     try {
@@ -18,6 +19,22 @@ export function ManhwaAdd() {
         ...data,
         user_id: user.id
       })
+
+      if (tagNames.length > 0) {
+        const existingTags = await tagService.getTags(user.id)
+        const tagIds: string[] = []
+        for (const tagName of tagNames) {
+          const existing = existingTags.find(t => t.name.toLowerCase() === tagName.toLowerCase())
+          if (existing) {
+            tagIds.push(existing.id)
+          } else {
+            const newTag = await tagService.createTag(user.id, tagName)
+            tagIds.push(newTag.id)
+          }
+        }
+        await tagService.updateManhwaTags(newManhwa.id, tagIds)
+      }
+
       navigate(`/manhwa/${newManhwa.id}`)
     } finally {
       setLoading(false)

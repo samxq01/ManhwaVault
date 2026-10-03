@@ -2,15 +2,17 @@ import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
+import { tagService } from "@/services/tagService"
 import { ManhwaForm } from "@/components/ManhwaForm"
 import { Loader2, AlertCircle } from "lucide-react"
-import type { Manhwa, ManhwaInsert } from "@/types"
+import type { Manhwa, ManhwaInsert, Tag } from "@/types"
 
 export function ManhwaEdit() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [manhwa, setManhwa] = useState<Manhwa | null>(null)
+  const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -19,9 +21,15 @@ export function ManhwaEdit() {
     async function loadManhwa() {
       if (!user || !id) return
       try {
-        const data = await manhwaService.getManhwaById(id, user.id)
+        const [data, manhwaTagsList] = await Promise.all([
+          manhwaService.getManhwaById(id, user.id),
+          tagService.getManhwaTags(user.id)
+        ])
+        
         if (data) {
           setManhwa(data)
+          const mt = manhwaTagsList.find(x => x.manhwa_id === data.id)
+          if (mt) setTags(mt.tags)
         } else {
           setError("Title not found.")
         }
@@ -34,12 +42,28 @@ export function ManhwaEdit() {
     loadManhwa()
   }, [id, user])
 
-  const handleSubmit = async (data: Omit<ManhwaInsert, "user_id">) => {
+  const handleSubmit = async (data: Omit<ManhwaInsert, "user_id">, tagNames: string[]) => {
     if (!user || !id) return
     setSaving(true)
     try {
       await manhwaService.updateManhwa(id, user.id, data)
+
+      const existingTags = await tagService.getTags(user.id)
+      const tagIds: string[] = []
+      for (const tagName of tagNames) {
+        const existing = existingTags.find(t => t.name.toLowerCase() === tagName.toLowerCase())
+        if (existing) {
+          tagIds.push(existing.id)
+        } else {
+          const newTag = await tagService.createTag(user.id, tagName)
+          tagIds.push(newTag.id)
+        }
+      }
+      await tagService.updateManhwaTags(id, tagIds)
+
       navigate(`/manhwa/${id}`)
+    } catch (err: any) {
+      setError(err.message || "Failed to save.")
     } finally {
       setSaving(false)
     }
@@ -70,7 +94,7 @@ export function ManhwaEdit() {
         <h2 className="text-3xl font-bold tracking-tight">Edit Title</h2>
         <p className="text-muted-foreground mt-2">Update information for {manhwa.title}.</p>
       </header>
-      <ManhwaForm initialData={manhwa} onSubmit={handleSubmit} isLoading={saving} />
+      <ManhwaForm initialData={manhwa} initialTags={tags} onSubmit={handleSubmit} isLoading={saving} />
     </div>
   )
 }
