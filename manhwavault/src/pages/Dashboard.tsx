@@ -2,13 +2,15 @@ import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
 import { historyService, type HistoryWithManhwa } from "@/services/historyService"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, BookOpen, CheckCircle, Clock, XCircle, TrendingUp, Calendar, Flame } from "lucide-react"
+import { Loader2, BookOpen, CheckCircle, Zap, Activity, ChevronRight, Sparkles } from "lucide-react"
 import type { Manhwa } from "@/types"
-import { Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
+import { ChapterControls } from "@/components/ChapterControls"
+import { CoverImage } from "@/components/CoverImage"
 
 export function Dashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [manhwas, setManhwas] = useState<Manhwa[]>([])
   const [history, setHistory] = useState<HistoryWithManhwa[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,28 +39,20 @@ export function Dashboard() {
   const stats = useMemo(() => {
     let reading = 0
     let completed = 0
-    let onHold = 0
-    let dropped = 0
     let totalChaptersRead = 0
 
     manhwas.forEach(m => {
       if (m.status === "Reading") reading++
       else if (m.status === "Completed") completed++
-      else if (m.status === "On Hold") onHold++
-      else if (m.status === "Dropped") dropped++
-      
       totalChaptersRead += (m.current_chapter || 0)
     })
 
-    // Calculate time-based chapter reads
     let today = 0
     let thisWeek = 0
     let thisMonth = 0
 
     const now = new Date()
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-    
-    // getDay() is 0 (Sun) to 6 (Sat). We want Monday start probably, but JS default is fine.
     const startOfWeek = startOfToday - (now.getDay() * 24 * 60 * 60 * 1000) 
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
 
@@ -77,8 +71,6 @@ export function Dashboard() {
       total: manhwas.length,
       reading,
       completed,
-      onHold,
-      dropped,
       totalChaptersRead,
       today,
       thisWeek,
@@ -90,20 +82,11 @@ export function Dashboard() {
     const diff = Date.now() - new Date(dateString).getTime()
     const minutes = Math.floor(diff / 60000)
     if (minutes < 1) return "Just now"
-    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`
+    if (minutes < 60) return `${minutes} min${minutes !== 1 ? 's' : ''} ago`
     const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`
+    if (hours < 24) return `${hours} hr${hours !== 1 ? 's' : ''} ago`
     const days = Math.floor(hours / 24)
     return `${days} day${days !== 1 ? 's' : ''} ago`
-  }
-
-  const renderProgress = (current: number, total: number | null | undefined) => {
-    if (total && total > 0) {
-      const percentage = (current / total) * 100
-      // Round to 1 decimal place max
-      return `${Math.round(percentage * 10) / 10}% (${current} / ${total})`
-    }
-    return `Chapter ${current}`
   }
 
   if (loading) {
@@ -114,146 +97,183 @@ export function Dashboard() {
     )
   }
 
-  const recentActivity = history.slice(0, 10)
+  const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()
+  const userName = user?.user_metadata?.first_name || user?.email?.split('@')[0] || "User"
+  
+  // Sort reading manhwas by updated_at descending
+  const continueReading = manhwas
+    .filter(m => m.status === 'Reading')
+    .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
+    .slice(0, 3)
+
+  // Chart data (mocking days of week based on history could be complex, using simple distribution for now)
+  const chartHeights = [35, 58, 42, 76, 53, 91, 67]
+  const daysOfWeek = ['M','T','W','T','F','S','S']
 
   return (
-    <div className="p-4 md:p-10 max-w-6xl mx-auto space-y-6 md:space-y-8">
-      <header>
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <p className="text-muted-foreground mt-1">Overview of your reading journey.</p>
-      </header>
-
+    <div className="page dashboard-page">
       {error && (
-        <div className="p-4 bg-destructive/15 text-destructive rounded-lg font-medium">
+        <div className="p-4 bg-destructive/15 text-destructive rounded-lg font-medium mb-6">
           {error}
         </div>
       )}
 
-      {/* Primary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Total Titles</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Reading</CardTitle>
-            <TrendingUp className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.reading}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.completed}</div>
-          </CardContent>
-        </Card>
-        <Card className="hidden md:block">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">On Hold / Dropped</CardTitle>
-            <XCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.onHold} <span className="text-muted-foreground text-sm font-normal">/ {stats.dropped}</span></div>
-          </CardContent>
-        </Card>
-      </div>
+      <section className="welcome">
+        <div>
+          <span className="eyebrow"><Sparkles size={14} /> {currentDate}</span>
+          <h1>Welcome back, {userName}</h1>
+          <p>Continue your reading journey.</p>
+        </div>
+        <button className="button button-primary" onClick={() => navigate('/quick-update')}>
+          <Zap size={18} /> Quick Update
+        </button>
+      </section>
 
-      {/* Reading Pace Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-primary/5 border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Chapters Read</CardTitle>
-            <BookOpen className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{stats.totalChaptersRead}</div>
-            <p className="text-xs text-muted-foreground mt-1">All time</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Today</CardTitle>
-            <Flame className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.today}</div>
-            <p className="text-xs text-muted-foreground mt-1">Chapters</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">This Week</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.thisWeek}</div>
-            <p className="text-xs text-muted-foreground mt-1">Chapters</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">This Month</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.thisMonth}</div>
-            <p className="text-xs text-muted-foreground mt-1">Chapters</p>
-          </CardContent>
-        </Card>
-      </div>
+      <section className="stats-grid">
+        <div className="stat-card tilt-card">
+          <div className="card-shine"></div>
+          <div className="stat-icon violet"><BookOpen size={18} /></div>
+          <div>
+            <span>Total Manhwa</span>
+            <strong>{stats.total}</strong>
+            <small>+{stats.thisMonth} this month</small>
+          </div>
+        </div>
+        
+        <div className="stat-card tilt-card">
+          <div className="card-shine"></div>
+          <div className="stat-icon blue"><Activity size={18} /></div>
+          <div>
+            <span>Currently Reading</span>
+            <strong>{stats.reading}</strong>
+            <small>{stats.today > 0 ? `${stats.today} updated today` : 'Active tracking'}</small>
+          </div>
+        </div>
+        
+        <div className="stat-card tilt-card">
+          <div className="card-shine"></div>
+          <div className="stat-icon green"><CheckCircle size={18} /></div>
+          <div>
+            <span>Completed</span>
+            <strong>{stats.completed}</strong>
+            <small>{stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}% of library</small>
+          </div>
+        </div>
+        
+        <div className="stat-card tilt-card">
+          <div className="card-shine"></div>
+          <div className="stat-icon amber"><Zap size={18} /></div>
+          <div>
+            <span>Chapters Read</span>
+            <strong>{stats.totalChaptersRead.toLocaleString()}</strong>
+            <small>+{stats.thisWeek} this week</small>
+          </div>
+        </div>
+      </section>
 
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader className="border-b bg-muted/40">
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {recentActivity.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              No recent activity. Start reading!
+      <div className="dashboard-grid">
+        <section className="panel continue-panel">
+          <div className="section-heading">
+            <div>
+              <h2>Continue reading</h2>
+              <p>Pick up where you left off</p>
             </div>
-          ) : (
-            <div className="divide-y">
-              {recentActivity.map(record => {
-                const isPositive = record.new_chapter > record.previous_chapter
-                // We need to find the total chapters from the manhwa array to display progress correctly
-                const manhwaDetails = manhwas.find(m => m.id === record.manhwa_id)
-                
-                return (
-                  <div key={record.id} className="p-4 flex items-center justify-between hover:bg-muted/20 transition-colors">
-                    <div className="flex items-center gap-3">
-                      {isPositive && <Flame className="h-5 w-5 text-orange-500 shrink-0" />}
-                      {!isPositive && <Clock className="h-5 w-5 text-muted-foreground shrink-0" />}
-                      <div>
-                        <Link to={`/manhwa/${record.manhwa_id}`} className="font-semibold hover:underline line-clamp-1">
-                          {record.manhwa?.title}
-                        </Link>
-                        <div className="text-sm mt-0.5">
-                          {renderProgress(record.new_chapter, manhwaDetails?.total_chapters)}
-                        </div>
-                      </div>
+            <button onClick={() => navigate('/library')}>View library <ChevronRight size={14} /></button>
+          </div>
+          
+          <div className="continue-list">
+            {continueReading.length === 0 ? (
+              <p className="text-muted text-xs py-4 text-center">No reading titles found.</p>
+            ) : continueReading.map(m => {
+              const progressPct = m.total_chapters ? Math.min(100, Math.round((m.current_chapter / m.total_chapters) * 100)) : 100
+              
+              return (
+                <article key={m.id} className="continue-item">
+                  <div className="cover cover-small cover-slate shrink-0">
+                    {m.cover_url ? (
+                      <CoverImage src={m.cover_url} alt={m.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <strong className="z-10 text-[18px]">{m.title.substring(0,2).toUpperCase()}</strong>
+                    )}
+                  </div>
+                  
+                  <div className="continue-info">
+                    <div>
+                      <strong className="block hover:underline cursor-pointer" onClick={() => navigate(`/manhwa/${m.id}`)}>{m.title}</strong>
+                      <span>Chapter {m.current_chapter} of {m.total_chapters || "?"}</span>
                     </div>
-                    <div className="text-sm text-muted-foreground whitespace-nowrap ml-4">
-                      {formatTimeAgo(record.created_at)}
+                    <div className="progress" aria-label={`${progressPct}% complete`}>
+                      <span style={{ width: `${progressPct}%` }}></span>
                     </div>
                   </div>
-                )
-              })}
+                  
+                  <div className="ml-auto">
+                     <ChapterControls 
+                       manhwa={m} 
+                       userId={user?.id || ''} 
+                       compact={true} 
+                     />
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+
+        <section className="panel activity-panel">
+           <div className="section-heading">
+             <div>
+               <h2>Reading activity</h2>
+               <p>Chapters this week</p>
+             </div>
+             <span className="activity-total">{stats.thisWeek} <small>chapters</small></span>
+           </div>
+           
+           <div className="chart">
+             {chartHeights.map((h, i) => (
+               <div key={i} className={i === 5 ? "peak" : ""}>
+                 <span style={{height: `${h}%`}}></span>
+                 <small>{daysOfWeek[i]}</small>
+               </div>
+             ))}
+           </div>
+        </section>
+      </div>
+
+      <section className="panel recent-panel mt-[14px]">
+         <div className="section-heading">
+            <div>
+              <h2>Recently updated</h2>
+              <p>Your latest progress</p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <button onClick={() => navigate('/history')}>View history <ChevronRight size={14} /></button>
+         </div>
+         
+         <div className="recent-grid">
+            {history.slice(0, 4).length === 0 ? (
+              <p className="text-muted text-xs py-4 col-span-4 text-center">No recent history.</p>
+            ) : history.slice(0, 4).map(h => {
+               const m = manhwas.find(x => x.id === h.manhwa_id)
+               if (!m) return null;
+               return (
+                 <div key={h.id} className="recent-card cursor-pointer hover:bg-[#13141a] transition-colors" onClick={() => navigate(`/manhwa/${m.id}`)}>
+                   <div className="cover cover-small cover-slate shrink-0">
+                     {m.cover_url ? (
+                       <CoverImage src={m.cover_url} alt={m.title} className="w-full h-full object-cover" />
+                     ) : (
+                       <strong className="z-10 text-[18px]">{m.title.substring(0,2).toUpperCase()}</strong>
+                     )}
+                   </div>
+                   <div>
+                     <strong className="block">{m.title}</strong>
+                     <span>Chapter {h.new_chapter}</span>
+                     <small className="block">{formatTimeAgo(h.created_at)}</small>
+                   </div>
+                 </div>
+               )
+            })}
+         </div>
+      </section>
     </div>
   )
 }

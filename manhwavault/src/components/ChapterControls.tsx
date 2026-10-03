@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+
 import { Input } from "@/components/ui/input"
 import { Minus, Plus } from "lucide-react"
 import { manhwaService } from "@/services/manhwaService"
@@ -120,55 +120,56 @@ export function ChapterControls({ manhwa, userId, onUpdateSuccess, onError, comp
 
   return (
     <div 
-      className={compact ? "flex items-center justify-between w-full" : "flex items-center gap-2 md:gap-3 shrink-0"}
+      className={`chapter-control ${compact ? "chapter-compact" : ""}`}
       tabIndex={0} 
       onKeyDown={handleKeyDown}
       onClick={(e) => e.stopPropagation()} // Prevent card clicks
     >
-      <Button 
-        variant="outline" 
-        size="icon"
+      <button 
+        aria-label="Decrease chapter"
         onClick={handleDecrement}
         disabled={localChapter <= 0}
-        className={compact ? "h-8 w-8 rounded-full shrink-0" : "h-10 w-10 md:h-12 md:w-12 rounded-full shrink-0"}
       >
-        <Minus className={compact ? "h-3 w-3" : "h-4 w-4 md:h-5 md:w-5"} />
-      </Button>
+        <Minus size={compact ? 18 : 20} />
+      </button>
       
-      <div className={compact ? "flex-1 flex justify-center items-center px-1" : "w-12 md:w-16 flex justify-center items-center"}>
-        {isEditing ? (
-          <Input
-            ref={inputRef}
-            type="number"
-            min="0"
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onKeyDown={handleEditKeyDown}
-            onBlur={handleEditSubmit}
-            className={compact ? "w-full text-center h-7 text-xs font-bold p-1" : "w-full text-center h-8 font-bold p-1"}
-          />
-        ) : (
-          <div 
-            className={`text-center font-bold tabular-nums cursor-text select-none hover:bg-accent/50 rounded p-1 transition-colors ${compact ? 'text-sm w-full' : 'text-lg md:text-2xl w-full'}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              setEditValue(localChapter.toString())
-              setIsEditing(true)
-            }}
-          >
-            {localChapter}
-          </div>
-        )}
-      </div>
+      {!compact && (
+        <div>
+          <span>Chapter</span>
+          {isEditing ? (
+            <Input
+              ref={inputRef}
+              type="number"
+              min="0"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={handleEditKeyDown}
+              onBlur={handleEditSubmit}
+              className="w-16 text-center h-8 font-bold p-1 bg-transparent border-none text-white focus-visible:ring-1"
+              autoFocus
+            />
+          ) : (
+            <strong 
+              className="cursor-text select-none"
+              onClick={(e) => {
+                e.stopPropagation()
+                setEditValue(localChapter.toString())
+                setIsEditing(true)
+              }}
+            >
+              {localChapter}
+            </strong>
+          )}
+        </div>
+      )}
 
-      <Button 
-        variant="default" 
-        size="icon"
+      <button 
+        className="increment"
+        aria-label="Increase chapter"
         onClick={handleIncrement}
-        className={compact ? "h-8 w-8 rounded-full shrink-0" : "h-10 w-10 md:h-12 md:w-12 rounded-full shrink-0"}
       >
-        <Plus className={compact ? "h-3 w-3" : "h-4 w-4 md:h-5 md:w-5"} />
-      </Button>
+        <Plus size={compact ? 18 : 20} />
+      </button>
     </div>
   )
 }
