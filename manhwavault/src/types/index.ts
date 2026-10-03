@@ -18,3 +18,14 @@ export type Manhwa = {
 
 export type ManhwaInsert = Omit<Manhwa, 'id' | 'created_at' | 'updated_at'>
 export type ManhwaUpdate = Partial<ManhwaInsert>
+
+export type ReadingHistory = {
+  id: string
+  user_id: string
+  manhwa_id: string
+  previous_chapter: number
+  new_chapter: number
+  created_at: string
+}
+
+export type ReadingHistoryInsert = Omit<ReadingHistory, 'id' | 'created_at'>

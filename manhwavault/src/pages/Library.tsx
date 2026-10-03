@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Heart, Plus, Loader2, AlertCircle } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
+import { ChapterControls } from "@/components/ChapterControls"
 import type { Manhwa } from "@/types"
 
 export function Library() {
@@ -118,13 +119,21 @@ export function Library() {
                       {item.status}
                     </span>
                   </div>
-                  <div className="mt-auto pt-2 border-t flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Ch. {item.current_chapter}</span>
-                    {item.total_chapters && (
-                      <span className="text-xs text-muted-foreground">
-                        {Math.round((item.current_chapter / item.total_chapters) * 100)}%
-                      </span>
-                    )}
+                  <div className="mt-auto pt-2 border-t flex flex-col gap-2">
+                    <div className="flex justify-between items-center text-xs text-muted-foreground">
+                      <span>Progress</span>
+                      {item.total_chapters && (
+                        <span>
+                          {Math.round((item.current_chapter / item.total_chapters) * 100)}%
+                        </span>
+                      )}
+                    </div>
+                    <ChapterControls 
+                      manhwa={item} 
+                      userId={user!.id} 
+                      compact={true}
+                      onError={setError} 
+                    />
                   </div>
                 </CardContent>
               </Card>
