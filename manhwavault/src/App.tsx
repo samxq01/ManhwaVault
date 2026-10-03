@@ -12,6 +12,10 @@ import { History } from "./pages/History"
 import { Statistics } from "./pages/Statistics"
 import { Settings } from "./pages/Settings"
 
+import { ManhwaAdd } from "./pages/ManhwaAdd"
+import { ManhwaEdit } from "./pages/ManhwaEdit"
+import { ManhwaDetails } from "./pages/ManhwaDetails"
+
 function App() {
   return (
     <AuthProvider>
@@ -26,6 +30,11 @@ function App() {
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="library" element={<Library />} />
+              
+              <Route path="manhwa/new" element={<ManhwaAdd />} />
+              <Route path="manhwa/:id" element={<ManhwaDetails />} />
+              <Route path="manhwa/:id/edit" element={<ManhwaEdit />} />
+
               <Route path="quick-update" element={<QuickUpdate />} />
               <Route path="history" element={<History />} />
               <Route path="statistics" element={<Statistics />} />

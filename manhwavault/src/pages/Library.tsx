@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react"
+import { Link } from "react-router-dom"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, MoreVertical, Plus, Loader2, AlertCircle } from "lucide-react"
+import { Heart, Plus, Loader2, AlertCircle } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
 import type { Manhwa } from "@/types"
@@ -11,7 +12,6 @@ export function Library() {
   const [manhwas, setManhwas] = useState<Manhwa[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isAdding, setIsAdding] = useState(false)
 
   const fetchManhwas = async () => {
     if (!user) return
@@ -31,27 +31,9 @@ export function Library() {
     fetchManhwas()
   }, [user])
 
-  const handleAddTestRecord = async () => {
-    if (!user) return
-    try {
-      setIsAdding(true)
-      await manhwaService.createManhwa({
-        user_id: user.id,
-        title: "Solo Leveling (Test Record)",
-        status: "Reading",
-        current_chapter: 15,
-        total_chapters: 179,
-        is_favorite: true,
-      })
-      await fetchManhwas()
-    } catch (err: any) {
-      setError(err.message || "Failed to add test record")
-    } finally {
-      setIsAdding(false)
-    }
-  }
-
-  const toggleFavorite = async (manhwa: Manhwa) => {
+  const toggleFavorite = async (e: React.MouseEvent, manhwa: Manhwa) => {
+    e.preventDefault() // prevent navigating to details
+    e.stopPropagation()
     if (!user) return
     try {
       const updated = await manhwaService.updateManhwa(manhwa.id, user.id, {
@@ -70,9 +52,11 @@ export function Library() {
           <h2 className="text-3xl font-bold tracking-tight">Library</h2>
           <p className="text-muted-foreground mt-2">Manage your collection.</p>
         </div>
-        <Button onClick={handleAddTestRecord} disabled={isAdding || loading}>
-          {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-          Add Test Title
+        <Button asChild>
+          <Link to="/manhwa/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Title
+          </Link>
         </Button>
       </header>
 
@@ -95,62 +79,56 @@ export function Library() {
           </div>
           <h3 className="text-xl font-semibold mb-2">Your library is empty</h3>
           <p className="text-muted-foreground max-w-sm mb-6">
-            You haven't added any Manhwa to your collection yet. Add a test record to get started.
+            You haven't added any Manhwa to your collection yet.
           </p>
-          <Button onClick={handleAddTestRecord} disabled={isAdding}>
-            {isAdding ? "Adding..." : "Add Test Title"}
+          <Button asChild>
+            <Link to="/manhwa/new">Add Title</Link>
           </Button>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
           {manhwas.map((item) => (
-            <Card key={item.id} className="overflow-hidden flex flex-col group">
-              <div className="aspect-[2/3] bg-muted relative">
-                {item.cover_url ? (
-                  <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-secondary/50 text-muted-foreground text-xs p-4 text-center">
-                    No Cover
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="absolute top-2 right-2 h-8 w-8 bg-background/60 backdrop-blur opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-                
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => toggleFavorite(item)}
-                  className={`absolute top-2 left-2 h-8 w-8 bg-background/60 backdrop-blur transition-opacity ${item.is_favorite ? 'opacity-100 text-red-500' : 'opacity-0 group-hover:opacity-100 text-foreground'}`}
-                >
-                  <Heart className={`h-4 w-4 ${item.is_favorite ? 'fill-current' : ''}`} />
-                </Button>
-              </div>
-              <CardContent className="p-4 flex-1 flex flex-col justify-between bg-card z-10">
-                <div>
-                  <h3 className="font-semibold line-clamp-2 text-sm md:text-base mb-1" title={item.title}>
-                    {item.title}
-                  </h3>
-                  <span className="inline-block px-2 py-0.5 rounded-full bg-secondary text-[10px] md:text-xs font-medium text-secondary-foreground mb-2">
-                    {item.status}
-                  </span>
-                </div>
-                <div className="mt-auto pt-2 border-t flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Ch. {item.current_chapter}</span>
-                  {item.total_chapters && (
-                    <span className="text-xs text-muted-foreground">
-                      {Math.round((item.current_chapter / item.total_chapters) * 100)}%
-                    </span>
+            <Link key={item.id} to={`/manhwa/${item.id}`} className="block group">
+              <Card className="overflow-hidden flex flex-col h-full hover:border-primary/50 transition-colors">
+                <div className="aspect-[2/3] bg-muted relative">
+                  {item.cover_url ? (
+                    <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-secondary/50 text-muted-foreground text-xs p-4 text-center">
+                      No Cover
+                    </div>
                   )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={(e) => toggleFavorite(e, item)}
+                    className={`absolute top-2 right-2 h-8 w-8 bg-background/60 backdrop-blur transition-opacity ${item.is_favorite ? 'opacity-100 text-red-500' : 'opacity-0 group-hover:opacity-100 text-foreground hover:text-red-500'}`}
+                  >
+                    <Heart className={`h-4 w-4 ${item.is_favorite ? 'fill-current' : ''}`} />
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
+                <CardContent className="p-4 flex-1 flex flex-col justify-between bg-card z-10">
+                  <div>
+                    <h3 className="font-semibold line-clamp-2 text-sm md:text-base mb-1" title={item.title}>
+                      {item.title}
+                    </h3>
+                    <span className="inline-block px-2 py-0.5 rounded-full bg-secondary text-[10px] md:text-xs font-medium text-secondary-foreground mb-2">
+                      {item.status}
+                    </span>
+                  </div>
+                  <div className="mt-auto pt-2 border-t flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Ch. {item.current_chapter}</span>
+                    {item.total_chapters && (
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round((item.current_chapter / item.total_chapters) * 100)}%
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}
