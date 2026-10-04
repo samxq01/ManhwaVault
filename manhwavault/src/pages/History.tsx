@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { historyService, type HistoryWithManhwa } from "@/services/historyService"
 import { getCoverColorClass } from "@/utils/coverColors"
 import { CoverImage } from "@/components/CoverImage"
-import { Loader2, Search, ChevronRight, AlertCircle, Calendar } from "lucide-react"
+import { Loader2, Search, ArrowRight } from "lucide-react"
 
 export function History() {
   const { user } = useAuth()
@@ -37,7 +37,6 @@ export function History() {
       )
     }
 
-    // Group by Date
     const grouped = result.reduce((acc, record) => {
       const dateString = new Date(record.created_at).toLocaleDateString("en-US", {
         month: "long",
@@ -49,77 +48,91 @@ export function History() {
       return acc
     }, {} as Record<string, HistoryWithManhwa[]>)
 
-    // Sort groups descending by date
     return Object.entries(grouped).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
   }, [history, searchQuery])
 
-  return (
-    <div className="page">
-      <section className="page-title-row">
-        <div>
-          <h1>History</h1>
-          <p>Your reading timeline.</p>
-        </div>
-      </section>
+  // Get relative day name (Today, Yesterday, etc)
+  const getRelativeDay = (dateStr: string) => {
+    const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    
+    if (dateStr === today) return "TODAY"
+    if (dateStr === yesterday) return "YESTERDAY"
+    
+    return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()
+  }
 
-      <div className="search-bar mb-6">
-        <label>
-          <Search size={18} />
-          <input 
-            placeholder="Filter by title..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </label>
+  return (
+    <div className="px-6 md:px-12 py-10 max-w-4xl mx-auto min-h-screen">
+      <header className="mb-12">
+        <span className="editorial-subheading text-accent">Journal</span>
+        <h1 className="editorial-heading mt-2">Reading History.</h1>
+      </header>
+
+      <div className="relative mb-16">
+        <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+        <input 
+          placeholder="Filter history by title..." 
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full bg-transparent border-b border-border py-4 pl-10 pr-6 text-lg font-serif focus:outline-none focus:border-accent transition-colors placeholder:text-muted-foreground/50"
+        />
       </div>
 
       {error && (
-        <div className="p-4 bg-destructive/15 text-destructive rounded-lg flex items-center font-medium mb-6">
-          <AlertCircle size={18} className="mr-2 shrink-0" />
+        <div className="p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-sm text-sm mb-6">
           {error}
         </div>
       )}
 
       {loading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-accent" />
         </div>
       ) : filteredHistory.length === 0 ? (
-        <div className="empty-state mt-8">
-          <span><Search size={24} /></span>
-          <h2>No history records</h2>
-          <p>Your reading timeline is empty.</p>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <h2 className="font-serif text-2xl mb-2 text-muted-foreground">Blank Pages</h2>
+          <p className="text-sm text-muted-foreground max-w-sm">No reading history found. Start tracking your progress to see it here.</p>
         </div>
       ) : (
-        <div className="history-timeline">
-          {filteredHistory.map(([date, records]) => (
-            <div className="history-group" key={date}>
-              <div className="history-date">
-                <span className="date-badge"><Calendar size={14} /> {date}</span>
-                <span className="line"></span>
+        <div className="relative border-l border-border/50 ml-4 pl-8 md:ml-8 md:pl-12 pb-12">
+          {filteredHistory.map(([date, records], groupIndex) => (
+            <div key={date} className={groupIndex !== 0 ? "mt-16" : ""}>
+              <div className="relative mb-8">
+                {/* Timeline node */}
+                <div className="absolute -left-[37px] md:-left-[53px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-accent ring-4 ring-background" />
+                
+                <h3 className="text-xs font-sans uppercase tracking-[0.2em] font-bold text-foreground">
+                  {getRelativeDay(date)}
+                  <span className="text-muted-foreground ml-3 font-normal capitalize tracking-normal">{date !== getRelativeDay(date) ? date : ""}</span>
+                </h3>
               </div>
-              <div className="history-items">
+              
+              <div className="flex flex-col gap-6">
                 {records.map(record => (
-                  <article className="history-item" key={record.id}>
-                    <div className={`cover cover-small shrink-0 ${getCoverColorClass(record.manhwa?.title || '')}`}>
+                  <article key={record.id} className="group flex items-start gap-6 p-4 -ml-4 hover:bg-surface/50 rounded-sm transition-colors cursor-default">
+                    <div className={`w-12 h-16 shrink-0 bg-surface-elevated overflow-hidden ${getCoverColorClass(record.manhwa?.title || '')}`}>
                       {record.manhwa?.cover_url ? (
-                        <CoverImage src={record.manhwa.cover_url} alt={record.manhwa.title} className="w-full h-full object-cover" />
+                        <CoverImage src={record.manhwa.cover_url} alt={record.manhwa.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300" />
                       ) : (
-                        <strong className="z-10">{record.manhwa?.title.substring(0, 2).toUpperCase() || "??"}</strong>
+                        <div className="w-full h-full flex items-center justify-center border border-border">
+                          <strong className="font-serif text-lg text-muted-foreground">{record.manhwa?.title.substring(0, 2).toUpperCase() || "??"}</strong>
+                        </div>
                       )}
                     </div>
-                    <div className="history-info min-w-0">
-                      <strong className="truncate block" title={record.manhwa?.title}>{record.manhwa?.title || "Unknown Title"}</strong>
-                      <span className="flex items-center gap-1.5 flex-wrap">
-                        Chapter {record.previous_chapter} 
-                        <ChevronRight size={12} className="text-muted" /> 
-                        <span className={record.new_chapter > record.previous_chapter ? "text-cyan-400" : ""}>
+                    
+                    <div className="flex flex-col justify-center min-w-0 pt-1">
+                      <strong className="block font-serif text-xl tracking-tight mb-1 truncate" title={record.manhwa?.title}>{record.manhwa?.title || "Unknown Title"}</strong>
+                      <div className="flex items-center gap-2 text-xs font-sans tracking-widest uppercase text-muted-foreground mb-1">
+                        <span>Chapter {record.previous_chapter}</span>
+                        <ArrowRight size={10} className="text-border" />
+                        <span className={record.new_chapter > record.previous_chapter ? "text-accent font-semibold" : ""}>
                           Chapter {record.new_chapter}
                         </span>
-                      </span>
-                      <small className="block">
+                      </div>
+                      <span className="text-[10px] text-muted-foreground/70 tracking-wider">
                         {new Date(record.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-                      </small>
+                      </span>
                     </div>
                   </article>
                 ))}

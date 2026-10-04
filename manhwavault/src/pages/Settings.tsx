@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { backupService, type BackupData } from "@/services/backupService"
-import { Download, Upload, FileJson, FileSpreadsheet, AlertTriangle, CheckCircle, Clock, Smartphone } from "lucide-react"
+import { Download, Upload, FileJson, FileSpreadsheet, AlertTriangle, CheckCircle, Clock, Smartphone, ChevronRight } from "lucide-react"
 import { useInstallPrompt } from "@/hooks/useInstallPrompt"
 
 export function Settings() {
@@ -51,7 +51,6 @@ export function Settings() {
       await backupService.updateLastBackupDate(user.id, now)
       setLastBackup(now)
     } catch (err) {
-      console.error("Export failed", err)
       alert("Failed to export backup. Please try again.")
     } finally {
       setIsExporting(false)
@@ -80,7 +79,6 @@ export function Settings() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (err) {
-      console.error("CSV Export failed", err)
       alert("Failed to export CSV. Please try again.")
     } finally {
       setIsExportingCsv(false)
@@ -111,9 +109,7 @@ export function Settings() {
         setPreviewError("Failed to parse JSON file. Ensure it is a valid backup.")
       }
     }
-    reader.onerror = () => {
-      setPreviewError("Failed to read file.")
-    }
+    reader.onerror = () => setPreviewError("Failed to read file.")
     reader.readAsText(file)
   }
 
@@ -131,11 +127,9 @@ export function Settings() {
     try {
       await backupService.importData(user.id, previewData, importMode)
       setImportSuccess(true)
-      
       setPreviewData(null)
       if (fileInputRef.current) fileInputRef.current.value = ""
     } catch (err) {
-      console.error("Import failed", err)
       alert("Failed to import data. Please check console for details.")
     } finally {
       setIsImporting(false)
@@ -144,211 +138,161 @@ export function Settings() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(undefined, { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+      year: 'numeric', month: 'long', day: 'numeric' 
     })
   }
 
   return (
-    <div className="page settings-page">
-      <section className="page-title-row">
-        <div>
-          <h1>Settings</h1>
-          <p>Manage your account preferences and backups.</p>
-        </div>
-      </section>
+    <div className="px-6 md:px-12 py-10 max-w-4xl mx-auto min-h-screen">
+      <header className="mb-12 border-b border-border pb-8">
+        <span className="editorial-subheading text-accent">Preferences</span>
+        <h1 className="editorial-heading mt-2">Settings & Data.</h1>
+      </header>
 
-      <div className="settings-grid grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+      <div className="flex flex-col gap-12">
         
-        {/* App Installation */}
-        {!isStandalone && (
-          <section className="panel col-span-1 md:col-span-2">
-            <div className="section-heading mb-4 border-b border-border pb-4">
-              <div className="flex items-center gap-3">
-                <Smartphone className="text-cyan-400" />
-                <div>
-                  <h2>Install App</h2>
-                  <p>Install ManhwaVault on your device for offline access.</p>
-                </div>
+        {/* Backup Status */}
+        <section>
+          <h2 className="font-serif text-2xl mb-6">Backup Status</h2>
+          <div className="flex items-center justify-between py-4 border-y border-border">
+            <div className="flex items-center gap-4">
+              <Clock size={16} className="text-muted-foreground" />
+              <div>
+                <span className="block text-sm font-medium">Last Backup</span>
+                <span className="text-xs text-muted-foreground">{lastBackup ? formatDate(lastBackup) : "Never backed up"}</span>
               </div>
             </div>
-            <div>
-              {installPrompt ? (
-                <button className="button button-primary" onClick={promptInstall}>
-                  Install ManhwaVault
-                </button>
-              ) : (
-                <div className="text-sm text-muted bg-surface-2 p-4 rounded-lg border border-border">
-                  App installation is currently unavailable. Your browser might not support it, or you may need to interact with the app more first.
+            {lastBackup ? (
+              <CheckCircle size={16} className="text-accent" />
+            ) : (
+              <AlertTriangle size={16} className="text-destructive" />
+            )}
+          </div>
+        </section>
+
+        {/* Data Management */}
+        <section>
+          <h2 className="font-serif text-2xl mb-6">Data Management</h2>
+          
+          <div className="flex flex-col border-t border-border">
+            <button 
+              onClick={handleExportJson} 
+              disabled={isExporting}
+              className="flex items-center justify-between py-5 border-b border-border group text-left hover:bg-surface-elevated/50 transition-colors px-2 -mx-2"
+            >
+              <div className="flex items-center gap-4">
+                <FileJson size={16} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                <div>
+                  <span className="block text-sm font-medium">Export Full Backup (JSON)</span>
+                  <span className="text-xs text-muted-foreground">Complete backup of all your data for restoration.</span>
+                </div>
+              </div>
+              {isExporting ? <Loader2 size={16} className="animate-spin text-accent" /> : <Download size={16} className="text-muted-foreground group-hover:text-accent transition-colors" />}
+            </button>
+
+            <button 
+              onClick={handleExportCsv} 
+              disabled={isExportingCsv}
+              className="flex items-center justify-between py-5 border-b border-border group text-left hover:bg-surface-elevated/50 transition-colors px-2 -mx-2"
+            >
+              <div className="flex items-center gap-4">
+                <FileSpreadsheet size={16} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                <div>
+                  <span className="block text-sm font-medium">Export Library (CSV)</span>
+                  <span className="text-xs text-muted-foreground">Spreadsheet format containing your library progress.</span>
+                </div>
+              </div>
+              {isExportingCsv ? <Loader2 size={16} className="animate-spin text-accent" /> : <Download size={16} className="text-muted-foreground group-hover:text-accent transition-colors" />}
+            </button>
+
+            <div className="py-5 border-b border-border px-2 -mx-2">
+              <input type="file" accept="application/json" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
+              
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-between w-full group text-left hover:bg-surface-elevated/50 transition-colors mb-4"
+              >
+                <div className="flex items-center gap-4">
+                  <Upload size={16} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                  <div>
+                    <span className="block text-sm font-medium">Import Backup</span>
+                    <span className="text-xs text-muted-foreground">Restore your data from a JSON backup file.</span>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-muted-foreground group-hover:text-accent transition-colors" />
+              </button>
+
+              {importSuccess && (
+                <div className="text-accent text-xs flex items-center gap-2 mb-4 bg-accent/10 p-2 rounded-sm">
+                  <CheckCircle size={14} /> Successfully imported backup!
                 </div>
               )}
+              {previewError && (
+                <div className="text-destructive text-xs flex items-center gap-2 mb-4 bg-destructive/10 p-2 rounded-sm">
+                  <AlertTriangle size={14} /> {previewError}
+                </div>
+              )}
+
+              {previewData && (
+                <div className="bg-surface border border-border p-4 mt-2 text-sm">
+                  <h4 className="font-serif text-lg mb-3">Backup Preview</h4>
+                  <ul className="text-xs text-muted-foreground mb-6 space-y-1">
+                    <li>Titles found: <strong className="text-foreground">{previewData.manhwa?.length || 0}</strong></li>
+                    <li>History entries: <strong className="text-foreground">{previewData.reading_history?.length || 0}</strong></li>
+                    <li>Tags: <strong className="text-foreground">{previewData.tags?.length || 0}</strong></li>
+                  </ul>
+
+                  <div className="space-y-4 mb-6">
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <input type="radio" name="importMode" className="mt-1 accent-accent" checked={importMode === 'merge'} onChange={() => setImportMode('merge')} />
+                      <div>
+                        <span className="block font-medium group-hover:text-accent transition-colors">Merge with existing data</span>
+                        <span className="text-xs text-muted-foreground">Updates existing items and adds new ones. Safe.</span>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <input type="radio" name="importMode" className="mt-1 accent-destructive" checked={importMode === 'replace'} onChange={() => setImportMode('replace')} />
+                      <div>
+                        <span className="block font-medium text-destructive group-hover:text-destructive/80 transition-colors">Replace existing data</span>
+                        <span className="text-xs text-muted-foreground">Deletes current library before importing. Danger.</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  <button 
+                    onClick={handleImport} disabled={isImporting}
+                    className={`w-full py-2 text-xs uppercase tracking-widest font-semibold transition-colors ${importMode === 'replace' ? 'bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/30' : 'bg-accent text-background hover:bg-accent/90'}`}
+                  >
+                    {isImporting ? "Importing..." : "Confirm Import"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* App Installation */}
+        {!isStandalone && installPrompt && (
+          <section>
+            <h2 className="font-serif text-2xl mb-6">App Installation</h2>
+            <div className="flex flex-col border-t border-border">
+              <button 
+                onClick={promptInstall}
+                className="flex items-center justify-between py-5 border-b border-border group text-left hover:bg-surface-elevated/50 transition-colors px-2 -mx-2"
+              >
+                <div className="flex items-center gap-4">
+                  <Smartphone size={16} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                  <div>
+                    <span className="block text-sm font-medium">Install ManhwaVault</span>
+                    <span className="text-xs text-muted-foreground">Install on your device for quick offline access.</span>
+                  </div>
+                </div>
+                <Download size={16} className="text-muted-foreground group-hover:text-accent transition-colors" />
+              </button>
             </div>
           </section>
         )}
 
-        {/* Backup Status */}
-        <section className="panel col-span-1 md:col-span-2">
-          <div className="section-heading mb-4 border-b border-border pb-4">
-            <div className="flex items-center gap-3">
-              <Clock className="text-violet-400" />
-              <div>
-                <h2>Backup Status</h2>
-                <p>Keep your data safe by exporting it regularly.</p>
-              </div>
-            </div>
-          </div>
-          <div>
-            {lastBackup ? (
-              <div className="flex items-center gap-2 text-green-400 bg-green-500/10 border border-green-500/20 p-4 rounded-lg">
-                <CheckCircle size={18} className="shrink-0" />
-                <span className="font-medium text-sm">Last backup: {formatDate(lastBackup)}</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-orange-400 bg-orange-500/10 border border-orange-500/20 p-4 rounded-lg">
-                <AlertTriangle size={18} className="shrink-0" />
-                <span className="font-medium text-sm">⚠️ No backup created yet.</span>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Export Section */}
-        <section className="panel">
-          <div className="section-heading mb-4 border-b border-border pb-4">
-            <div className="flex items-center gap-3">
-              <Download className="text-amber-400" />
-              <div>
-                <h2>Export Data</h2>
-                <p>Download a copy of your library and history.</p>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <button 
-                onClick={handleExportJson} 
-                disabled={isExporting} 
-                className="button button-secondary w-full flex justify-center py-2.5 h-auto"
-              >
-                <FileJson size={16} className="mr-2" />
-                {isExporting ? "Exporting..." : "Export Backup (JSON)"}
-              </button>
-              <p className="text-[11px] text-muted text-center">Complete backup of all your ManhwaVault data. Use this for restoring.</p>
-            </div>
-
-            <div className="space-y-2 pt-4 border-t border-border">
-              <button 
-                onClick={handleExportCsv} 
-                disabled={isExportingCsv} 
-                className="button button-secondary w-full flex justify-center py-2.5 h-auto"
-              >
-                <FileSpreadsheet size={16} className="mr-2" />
-                {isExportingCsv ? "Exporting..." : "Export Library (CSV)"}
-              </button>
-              <p className="text-[11px] text-muted text-center">Spreadsheet format containing just your library titles and progress.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* Import Section */}
-        <section className="panel">
-          <div className="section-heading mb-4 border-b border-border pb-4">
-            <div className="flex items-center gap-3">
-              <Upload className="text-blue-400" />
-              <div>
-                <h2>Import Backup</h2>
-                <p>Restore your data from a JSON backup file.</p>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-4">
-            {importSuccess && (
-              <div className="flex items-center gap-2 text-green-400 bg-green-500/10 border border-green-500/20 p-3 rounded-lg text-sm mb-4">
-                <CheckCircle size={16} className="shrink-0" />
-                Successfully imported backup!
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <input
-                type="file"
-                accept="application/json"
-                className="hidden"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="button button-secondary w-full flex justify-center py-2.5 h-auto"
-              >
-                Select Backup File
-              </button>
-            </div>
-
-            {previewError && (
-              <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 p-3 rounded-lg flex items-start gap-2">
-                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-                {previewError}
-              </div>
-            )}
-
-            {previewData && (
-              <div className="bg-surface-2 p-4 rounded-lg space-y-4 border border-border">
-                <div>
-                  <h4 className="font-semibold text-sm mb-2 text-white">Backup Preview</h4>
-                  <ul className="text-xs space-y-1 text-muted">
-                    <li>Titles found: <span className="font-medium text-white">{previewData.manhwa?.length || 0}</span></li>
-                    <li>History entries: <span className="font-medium text-white">{previewData.reading_history?.length || 0}</span></li>
-                    <li>Tags: <span className="font-medium text-white">{previewData.tags?.length || 0}</span></li>
-                  </ul>
-                </div>
-                
-                <div className="space-y-3 pt-3 border-t border-border">
-                  <h4 className="font-semibold text-sm text-white">Import Mode</h4>
-                  
-                  <div className="flex items-start space-x-3">
-                    <input 
-                      type="radio" 
-                      id="merge" 
-                      name="importMode" 
-                      className="mt-0.5"
-                      checked={importMode === 'merge'}
-                      onChange={() => setImportMode('merge')}
-                    />
-                    <label htmlFor="merge" className="text-xs leading-tight cursor-pointer">
-                      <span className="font-bold text-white block mb-0.5">Merge with existing data</span>
-                      <span className="text-muted">Updates existing items and adds new ones. Safe.</span>
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <input 
-                      type="radio" 
-                      id="replace" 
-                      name="importMode" 
-                      className="mt-0.5"
-                      checked={importMode === 'replace'}
-                      onChange={() => setImportMode('replace')}
-                    />
-                    <label htmlFor="replace" className="text-xs leading-tight cursor-pointer">
-                      <span className="font-bold text-red-400 block mb-0.5">Replace existing data</span>
-                      <span className="text-muted">Deletes current library before importing.</span>
-                    </label>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handleImport}
-                  disabled={isImporting}
-                  className={`w-full py-2.5 rounded-md font-bold text-sm transition-colors ${importMode === 'replace' ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30' : 'button-primary'}`}
-                >
-                  {isImporting ? "Importing..." : "Import this backup?"}
-                </button>
-              </div>
-            )}
-          </div>
-        </section>
       </div>
     </div>
   )

@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { Plus, Search, Filter, X, Heart, Loader2 } from "lucide-react"
+import { Plus, Search, Filter, X, Heart, Loader2, ArrowRight } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
 import { tagService } from "@/services/tagService"
 import { historyService } from "@/services/historyService"
 import { getCoverColorClass } from "@/utils/coverColors"
+import { useToast } from "@/contexts/ToastContext"
 import { CoverImage } from "@/components/CoverImage"
+import { ChapterControls } from "@/components/ChapterControls"
 import type { Manhwa, Tag } from "@/types"
 
 export function Library() {
@@ -24,8 +26,8 @@ export function Library() {
   const [sortOption, setSortOption] = useState("recently_updated")
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   
-  // Mobile Filter Sheet State
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
+  const { toast } = useToast()
 
   const fetchManhwasAndTags = async () => {
     if (!user) return
@@ -41,7 +43,6 @@ export function Library() {
       
       setAllTags(fetchedTags)
       
-      // Combine manhwas with their tags
       const combined = fetchedManhwas.map(m => {
         const mt = manhwaTagsList.find(x => x.manhwa_id === m.id)
         return { ...m, tags: mt?.tags || [] }
@@ -59,53 +60,6 @@ export function Library() {
     fetchManhwasAndTags()
   }, [user])
 
-  const handleQuickUpdate = async (e: React.MouseEvent, m: Manhwa) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!user) return
-    
-    const newChapter = (m.current_chapter || 0) + 1
-    
-    // Optimistic UI Update
-    setManhwas(prev => prev.map(item => item.id === m.id ? { ...item, current_chapter: newChapter, updated_at: new Date().toISOString() } : item))
-    
-    // Add visual feedback class temporarily
-    const element = document.querySelector(`[data-manhwa-id="${m.id}"]`)
-    if (element) {
-      element.classList.remove('chapter-updated')
-      void (element as HTMLElement).offsetWidth // trigger reflow
-      element.classList.add('chapter-updated')
-      setTimeout(() => element.classList.remove('chapter-updated'), 700)
-    }
-
-    try {
-      await manhwaService.updateManhwa(m.id, user.id, { current_chapter: newChapter })
-      await historyService.addHistoryRecord({
-        user_id: user.id,
-        manhwa_id: m.id,
-        previous_chapter: m.current_chapter,
-        new_chapter: newChapter,
-      })
-    } catch (err: any) {
-      // Revert optimistic update
-      setManhwas(prev => prev.map(item => item.id === m.id ? { ...item, current_chapter: m.current_chapter, updated_at: m.updated_at } : item))
-      setError(err.message || "Failed to update chapter")
-    }
-  }
-
-  const formatTimeAgo = (dateString: string) => {
-    const diff = Date.now() - new Date(dateString).getTime()
-    const minutes = Math.floor(diff / 60000)
-    if (minutes < 1) return "Just now"
-    if (minutes < 60) return `${minutes}m ago`
-    const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours}h ago`
-    const days = Math.floor(hours / 24)
-    if (days < 30) return `${days}d ago`
-    return new Date(dateString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-  }
-
-  // Memoized Filtering & Sorting
   const filteredAndSortedManhwas = useMemo(() => {
     let result = [...manhwas]
     
@@ -134,19 +88,13 @@ export function Library() {
 
     result.sort((a, b) => {
       switch (sortOption) {
-        case "az":
-          return a.title.localeCompare(b.title)
-        case "za":
-          return b.title.localeCompare(a.title)
-        case "chapter_highest":
-          return (b.current_chapter || 0) - (a.current_chapter || 0)
-        case "chapter_lowest":
-          return (a.current_chapter || 0) - (b.current_chapter || 0)
-        case "rating_highest":
-          return (b.rating || 0) - (a.rating || 0)
+        case "az": return a.title.localeCompare(b.title)
+        case "za": return b.title.localeCompare(a.title)
+        case "chapter_highest": return (b.current_chapter || 0) - (a.current_chapter || 0)
+        case "chapter_lowest": return (a.current_chapter || 0) - (b.current_chapter || 0)
+        case "rating_highest": return (b.rating || 0) - (a.rating || 0)
         case "recently_updated":
-        default:
-          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        default: return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       }
     })
 
@@ -154,168 +102,161 @@ export function Library() {
   }, [manhwas, searchQuery, statusFilter, favoritesOnly, sortOption, selectedTags])
 
   return (
-    <div className="page">
-      <section className="page-title-row">
+    <div className="px-6 md:px-12 py-8 max-w-7xl mx-auto min-h-screen">
+      {/* Header */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
         <div>
-          <h1>My Library</h1>
-          <p>All your stories, in one place.</p>
+          <span className="editorial-subheading text-accent">Archive</span>
+          <h1 className="editorial-heading mt-2">Your Collection.</h1>
         </div>
-        <button className="button button-primary" onClick={() => navigate('/manhwa/new')}>
-          <Plus size={16} /> Add Manhwa
+        
+        <button 
+          onClick={() => navigate('/manhwa/new')} 
+          className="flex items-center gap-2 px-5 py-2.5 bg-accent text-background rounded-sm hover:bg-accent/90 transition-colors font-medium text-sm font-sans tracking-wide"
+        >
+          <Plus size={16} strokeWidth={2.5} /> Add Title
         </button>
-      </section>
+      </header>
 
       {error && (
-        <div className="p-4 bg-destructive/15 text-destructive rounded-lg font-medium mb-6">
+        <div className="p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-sm text-sm mb-6">
           {error}
         </div>
       )}
 
-      <div className="library-tools">
-        <label className="flex-1 max-w-sm">
-          <Search size={18} />
+      {/* Tools / Filters */}
+      <div className="flex flex-col lg:flex-row gap-4 mb-10 border-b border-border pb-6">
+        <div className="relative flex-1 min-w-[280px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
           <input 
-            placeholder="Search your library..." 
+            placeholder="Search archive..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-surface border border-border rounded-sm py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-accent transition-colors"
           />
-        </label>
-        
-        <div className="filter-tabs hidden md:flex">
-          {['All', 'Reading', 'Completed', 'On Hold'].map(status => (
-            <button 
-              key={status}
-              className={statusFilter === status ? 'active' : ''} 
-              onClick={() => setStatusFilter(status)}
-            >
-              {status}
-            </button>
-          ))}
         </div>
+        
+        <div className="hidden lg:flex items-center gap-2 flex-wrap">
+          <div className="flex bg-surface p-1 rounded-sm border border-border">
+            {['All', 'Reading', 'Completed', 'On Hold'].map(status => (
+              <button 
+                key={status}
+                className={`px-4 py-1.5 rounded-sm text-[11px] uppercase tracking-widest font-semibold transition-colors ${statusFilter === status ? 'bg-surface-elevated text-accent' : 'text-muted-foreground hover:text-foreground'}`} 
+                onClick={() => setStatusFilter(status)}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
 
-        <button 
-          className={`button button-secondary hidden md:flex ${favoritesOnly ? 'border-red-500/50 text-red-400' : ''}`}
-          onClick={() => setFavoritesOnly(!favoritesOnly)}
-        >
-          <Heart size={14} className={favoritesOnly ? 'fill-current' : ''} /> Favorites
-        </button>
+          <button 
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-sm border transition-colors text-[11px] uppercase tracking-widest font-semibold ${favoritesOnly ? 'border-red-500/30 text-red-400 bg-red-500/5' : 'border-border bg-surface text-muted-foreground'}`}
+            onClick={() => setFavoritesOnly(!favoritesOnly)}
+          >
+            <Heart size={14} className={favoritesOnly ? 'fill-current' : ''} /> Favs
+          </button>
 
-        <select 
-          className="bg-surface border border-border rounded-lg text-[10px] px-2 py-2 text-muted h-[38px] hidden md:block"
-          value={sortOption}
-          onChange={(e) => setSortOption(e.target.value)}
-        >
-          <option value="recently_updated">Recently Updated</option>
-          <option value="az">A-Z</option>
-          <option value="za">Z-A</option>
-          <option value="chapter_highest">Highest Chapter</option>
-          <option value="rating_highest">Highest Rating</option>
-        </select>
+          <select 
+            className="bg-surface border border-border rounded-sm text-[11px] uppercase tracking-widest font-semibold px-3 py-1.5 h-[34px] focus:outline-none focus:border-accent cursor-pointer"
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+          >
+            <option value="recently_updated">Recent</option>
+            <option value="az">A-Z</option>
+            <option value="za">Z-A</option>
+            <option value="chapter_highest">Highest Ch.</option>
+          </select>
+        </div>
 
         {/* Mobile Filter Toggle */}
         <button 
-          className="button button-secondary md:hidden"
+          className="lg:hidden flex items-center justify-center gap-2 bg-surface border border-border py-2 px-4 rounded-sm text-sm"
           onClick={() => setIsFilterSheetOpen(true)}
         >
-          <Filter size={14} />
+          <Filter size={16} /> Filters
         </button>
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-          <Loader2 className="h-8 w-8 animate-spin mb-4 text-cyan-500" />
+        <div className="flex justify-center py-32">
+          <Loader2 className="h-8 w-8 animate-spin text-accent" />
         </div>
       ) : filteredAndSortedManhwas.length === 0 ? (
-        <div className="empty-state mt-8">
-          <span><Search size={24} /></span>
-          <h2>No matching titles</h2>
-          <p>Try another title or clear your search.</p>
-          <button className="button button-secondary" onClick={() => { setSearchQuery(""); setStatusFilter("All"); setFavoritesOnly(false); }}>
-            Clear search
-          </button>
+        <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-border rounded-sm">
+          <BookOpen className="text-muted-foreground mb-4 opacity-50" size={48} />
+          <h2 className="font-serif text-2xl mb-2 text-muted-foreground">Archive Empty</h2>
+          <p className="text-sm text-muted-foreground/70 max-w-sm">No titles match your current filters. Adjust your search or add a new title.</p>
         </div>
       ) : (
-        <section className="library-grid">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 gap-y-10">
           {filteredAndSortedManhwas.map(m => {
-            const progressPct = m.total_chapters ? Math.min(100, Math.round((m.current_chapter / m.total_chapters) * 100)) : 100
-            const statusClass = m.status ? m.status.toLowerCase().replace(' ', '-') : 'other'
-
             return (
-              <article 
+              <div 
                 key={m.id} 
-                className="library-card tilt-card cursor-pointer" 
-                data-manhwa-id={m.id}
+                className="group flex flex-col cursor-pointer relative" 
                 onClick={() => navigate(`/manhwa/${m.id}`)}
               >
-                <div className="card-shine"></div>
-                <div className="library-cover-wrap">
-                  <div className={`cover cover-large ${getCoverColorClass(m.title)}`}>
-                    {m.cover_url ? (
-                      <CoverImage src={m.cover_url} alt={m.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <strong className="z-10">{m.title.substring(0,2).toUpperCase()}</strong>
-                    )}
+                <div className={`w-full aspect-[3/4.2] mb-4 bg-surface-elevated library-cover overflow-hidden ${getCoverColorClass(m.title)} border border-border`}>
+                  {m.cover_url ? (
+                    <CoverImage src={m.cover_url} alt={m.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="font-serif text-2xl text-muted-foreground">{m.title.substring(0,2).toUpperCase()}</span>
+                    </div>
+                  )}
+                  
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                     <div onClick={(e) => { e.stopPropagation(); }} className="w-full flex justify-center translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                       <ChapterControls 
+                         manhwa={m} 
+                         userId={user?.id || ''} 
+                         compact={true}
+                         onUpdateSuccess={(newChapter) => toast("Saved", `${m.title} updated`)}
+                       />
+                     </div>
                   </div>
-                  
-                  {m.status && (
-                    <span className={`badge badge-${statusClass}`}>
-                      <span></span>{m.status}
-                    </span>
-                  )}
-                  
-                  {m.is_favorite && (
-                    <span className="absolute top-[9px] right-[9px] bg-background/80 backdrop-blur rounded p-1 shadow-sm text-red-500">
-                      <Heart size={12} className="fill-current" />
-                    </span>
-                  )}
-
-                  <button 
-                    className="card-plus" 
-                    aria-label={`Update ${m.title}`} 
-                    onClick={(e) => handleQuickUpdate(e, m)}
-                  >
-                    <Plus size={18} />
-                  </button>
                 </div>
                 
-                <div className="library-card-info">
-                  <h2>{m.title}</h2>
-                  <div>
-                    <span>Chapter {m.current_chapter}</span>
-                    <small>{m.total_chapters ? `${progressPct}%` : ''}</small>
-                  </div>
-                  <div className="progress">
-                    <span style={{ width: `${progressPct}%` }}></span>
-                  </div>
-                  <small>Updated {formatTimeAgo(m.updated_at)}</small>
+                <h2 className="font-serif text-sm line-clamp-1 group-hover:text-accent transition-colors">{m.title}</h2>
+                <div className="flex justify-between items-baseline mt-1">
+                  <span className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground">
+                    Ch. {m.current_chapter} {m.status !== 'Reading' && `• ${m.status}`}
+                  </span>
                 </div>
-              </article>
+                
+                {m.is_favorite && (
+                  <span className="absolute top-2 right-2 text-accent">
+                    <Heart size={14} className="fill-current drop-shadow-md" />
+                  </span>
+                )}
+              </div>
             )
           })}
-        </section>
+        </div>
       )}
 
       {/* Mobile Filter Sheet */}
       {isFilterSheetOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end md:hidden">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setIsFilterSheetOpen(false)} />
-          <div className="relative bg-surface w-full rounded-t-2xl border-t border-border p-6 pb-safe animate-in slide-in-from-bottom-full duration-200">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white">Filters & Sort</h2>
-              <button className="text-muted" onClick={() => setIsFilterSheetOpen(false)}>
+          <div className="relative bg-surface w-full rounded-t-sm border-t border-border p-6 pb-safe">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="font-serif text-2xl">Filters</h2>
+              <button className="text-muted-foreground hover:text-foreground" onClick={() => setIsFilterSheetOpen(false)}>
                 <X size={20} />
               </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <label className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2 block">Status</label>
+                <label className="editorial-subheading block mb-3">Status</label>
                 <div className="flex flex-wrap gap-2">
                   {['All', 'Reading', 'Completed', 'On Hold', 'Dropped', 'Plan to Read'].map(status => (
                     <button 
                       key={status}
                       onClick={() => setStatusFilter(status)}
-                      className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${statusFilter === status ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-surface-2 text-muted border border-border'}`}
+                      className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-widest border transition-colors ${statusFilter === status ? 'bg-accent/10 border-accent/30 text-accent' : 'bg-surface-elevated border-transparent text-muted-foreground'}`}
                     >
                       {status}
                     </button>
@@ -323,31 +264,10 @@ export function Library() {
                 </div>
               </div>
               
-              {allTags.length > 0 && (
-                <div>
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2 block">Tags</label>
-                  <div className="flex flex-wrap gap-2">
-                    {allTags.map(tag => (
-                      <button
-                        key={tag.id}
-                        onClick={() => setSelectedTags(prev => prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id])}
-                        className={`px-2 py-1 text-[10px] rounded border transition-colors ${
-                          selectedTags.includes(tag.id) 
-                            ? "bg-primary/20 text-primary border-primary/50" 
-                            : "bg-surface-2 text-muted border-border"
-                        }`}
-                      >
-                        {tag.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
               <div>
-                <label className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2 block">Sort By</label>
+                <label className="editorial-subheading block mb-3">Sort By</label>
                 <select 
-                  className="w-full bg-surface-2 border border-border rounded-lg text-xs px-3 py-2.5 text-white"
+                  className="w-full bg-surface-elevated border border-border rounded-sm px-4 py-3 text-sm focus:outline-none focus:border-accent"
                   value={sortOption}
                   onChange={(e) => setSortOption(e.target.value)}
                 >
@@ -355,25 +275,44 @@ export function Library() {
                   <option value="az">Alphabetical (A-Z)</option>
                   <option value="za">Alphabetical (Z-A)</option>
                   <option value="chapter_highest">Highest Chapter</option>
-                  <option value="rating_highest">Highest Rating</option>
                 </select>
               </div>
 
               <button 
-                className={`w-full py-2.5 rounded-lg text-xs flex items-center justify-center gap-2 border transition-colors ${favoritesOnly ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-surface-2 border-border text-muted'}`}
+                className={`w-full py-3 text-sm font-semibold uppercase tracking-widest flex items-center justify-center gap-2 border transition-colors ${favoritesOnly ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-surface-elevated border-transparent text-muted-foreground'}`}
                 onClick={() => setFavoritesOnly(!favoritesOnly)}
               >
-                <Heart size={14} className={favoritesOnly ? 'fill-current' : ''} /> 
+                <Heart size={16} className={favoritesOnly ? 'fill-current' : ''} /> 
                 Favorites Only
               </button>
             </div>
             
-            <button className="button button-primary w-full mt-6 h-10" onClick={() => setIsFilterSheetOpen(false)}>
+            <button className="w-full mt-8 py-3 bg-accent text-background font-medium" onClick={() => setIsFilterSheetOpen(false)}>
               Show {filteredAndSortedManhwas.length} Titles
             </button>
           </div>
         </div>
       )}
     </div>
+  )
+}
+
+function BookOpen(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
   )
 }

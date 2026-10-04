@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { AuthProvider } from "./contexts/AuthContext"
+import { ToastProvider } from "./contexts/ToastContext"
 import { ProtectedRoute } from "./components/ProtectedRoute"
 import { AppLayout } from "./layouts/AppLayout"
 import { Login } from "./pages/Login"
@@ -11,6 +12,7 @@ import { QuickUpdate } from "./pages/QuickUpdate"
 import { History } from "./pages/History"
 import { Statistics } from "./pages/Statistics"
 import { Settings } from "./pages/Settings"
+import { CustomCursor } from "./components/CustomCursor"
 
 import { ManhwaAdd } from "./pages/ManhwaAdd"
 import { ManhwaEdit } from "./pages/ManhwaEdit"
@@ -19,8 +21,10 @@ import { ManhwaDetails } from "./pages/ManhwaDetails"
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
+      <ToastProvider>
+        <CustomCursor />
+        <BrowserRouter>
+          <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -42,7 +46,8 @@ function App() {
             </Route>
           </Route>
         </Routes>
-      </BrowserRouter>
+        </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   )
 }

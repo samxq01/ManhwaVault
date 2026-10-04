@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
 import { historyService, type HistoryWithManhwa } from "@/services/historyService"
-import { Loader2, BookOpen, CheckCircle, Zap, Activity, ChevronRight, Sparkles } from "lucide-react"
+import { Loader2, ArrowRight } from "lucide-react"
 import { getCoverColorClass } from "@/utils/coverColors"
+import { useToast } from "@/contexts/ToastContext"
 import type { Manhwa } from "@/types"
 import { useNavigate } from "react-router-dom"
 import { ChapterControls } from "@/components/ChapterControls"
@@ -16,6 +17,7 @@ export function Dashboard() {
   const [history, setHistory] = useState<HistoryWithManhwa[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     async function loadDashboard() {
@@ -37,48 +39,6 @@ export function Dashboard() {
     loadDashboard()
   }, [user])
 
-  const stats = useMemo(() => {
-    let reading = 0
-    let completed = 0
-    let totalChaptersRead = 0
-
-    manhwas.forEach(m => {
-      if (m.status === "Reading") reading++
-      else if (m.status === "Completed") completed++
-      totalChaptersRead += (m.current_chapter || 0)
-    })
-
-    let today = 0
-    let thisWeek = 0
-    let thisMonth = 0
-
-    const now = new Date()
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-    const startOfWeek = startOfToday - (now.getDay() * 24 * 60 * 60 * 1000) 
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
-
-    history.forEach(record => {
-      if (record.new_chapter > record.previous_chapter) {
-        const diff = record.new_chapter - record.previous_chapter
-        const recordTime = new Date(record.created_at).getTime()
-        
-        if (recordTime >= startOfToday) today += diff
-        if (recordTime >= startOfWeek) thisWeek += diff
-        if (recordTime >= startOfMonth) thisMonth += diff
-      }
-    })
-
-    return {
-      total: manhwas.length,
-      reading,
-      completed,
-      totalChaptersRead,
-      today,
-      thisWeek,
-      thisMonth
-    }
-  }, [manhwas, history])
-
   const formatTimeAgo = (dateString: string) => {
     const diff = Date.now() - new Date(dateString).getTime()
     const minutes = Math.floor(diff / 60000)
@@ -99,181 +59,165 @@ export function Dashboard() {
   }
 
   const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()
-  const userName = user?.user_metadata?.first_name || user?.email?.split('@')[0] || "User"
   
   // Sort reading manhwas by updated_at descending
   const continueReading = manhwas
     .filter(m => m.status === 'Reading')
     .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
-    .slice(0, 3)
 
-  // Chart data (mocking days of week based on history could be complex, using simple distribution for now)
-  const chartHeights = [35, 58, 42, 76, 53, 91, 67]
-  const daysOfWeek = ['M','T','W','T','F','S','S']
+  const heroManhwa = continueReading[0]
+  const collection = continueReading.slice(1, 6)
 
   return (
-    <div className="page dashboard-page">
+    <div className="px-6 md:px-12 py-8 max-w-7xl mx-auto min-h-screen">
       {error && (
-        <div className="p-4 bg-destructive/15 text-destructive rounded-lg font-medium mb-6">
+        <div className="p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-sm text-sm mb-6">
           {error}
         </div>
       )}
 
-      <section className="welcome">
+      {/* Header */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-4">
         <div>
-          <span className="eyebrow"><Sparkles size={14} /> {currentDate}</span>
-          <h1>Welcome back, {userName}</h1>
-          <p>Continue your reading journey.</p>
+          <span className="editorial-subheading text-accent">{currentDate}</span>
+          <h1 className="editorial-heading mt-2">Good Evening.</h1>
         </div>
-        <button className="button button-primary" onClick={() => navigate('/quick-update')}>
-          <Zap size={18} /> Quick Update
-        </button>
-      </section>
+      </header>
 
-      <section className="stats-grid">
-        <div className="stat-card tilt-card">
-          <div className="card-shine"></div>
-          <div className="stat-icon violet"><BookOpen size={18} /></div>
-          <div>
-            <span>Total Manhwa</span>
-            <strong>{stats.total}</strong>
-            <small>+{stats.thisMonth} this month</small>
-          </div>
-        </div>
-        
-        <div className="stat-card tilt-card">
-          <div className="card-shine"></div>
-          <div className="stat-icon blue"><Activity size={18} /></div>
-          <div>
-            <span>Currently Reading</span>
-            <strong>{stats.reading}</strong>
-            <small>{stats.today > 0 ? `${stats.today} updated today` : 'Active tracking'}</small>
-          </div>
-        </div>
-        
-        <div className="stat-card tilt-card">
-          <div className="card-shine"></div>
-          <div className="stat-icon green"><CheckCircle size={18} /></div>
-          <div>
-            <span>Completed</span>
-            <strong>{stats.completed}</strong>
-            <small>{stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}% of library</small>
-          </div>
-        </div>
-        
-        <div className="stat-card tilt-card">
-          <div className="card-shine"></div>
-          <div className="stat-icon amber"><Zap size={18} /></div>
-          <div>
-            <span>Chapters Read</span>
-            <strong>{stats.totalChaptersRead.toLocaleString()}</strong>
-            <small>+{stats.thisWeek} this week</small>
-          </div>
-        </div>
-      </section>
-
-      <div className="dashboard-grid">
-        <section className="panel continue-panel">
-          <div className="section-heading">
-            <div>
-              <h2>Continue reading</h2>
-              <p>Pick up where you left off</p>
-            </div>
-            <button onClick={() => navigate('/library')}>View library <ChevronRight size={14} /></button>
+      {/* Hero Section */}
+      {heroManhwa && (
+        <section className="mb-20">
+          <div className="flex items-center justify-between mb-8 border-b border-border pb-4">
+            <h2 className="font-serif text-2xl tracking-tight">Continue Reading</h2>
+            <button 
+              onClick={() => navigate('/library')} 
+              className="text-xs font-sans uppercase tracking-widest text-muted-foreground hover:text-accent transition-colors flex items-center gap-2"
+            >
+              View Library <ArrowRight size={14} />
+            </button>
           </div>
           
-          <div className="continue-list">
-            {continueReading.length === 0 ? (
-              <p className="text-muted text-xs py-4 text-center">No reading titles found.</p>
-            ) : continueReading.map(m => {
-              const progressPct = m.total_chapters ? Math.min(100, Math.round((m.current_chapter / m.total_chapters) * 100)) : 100
+          <div className="flex flex-col md:flex-row gap-10 group cursor-pointer" onClick={() => navigate(`/manhwa/${heroManhwa.id}`)}>
+            <div className={`w-full md:w-1/3 aspect-[3/4.2] shrink-0 library-cover ${getCoverColorClass(heroManhwa.title)} relative overflow-hidden bg-surface-elevated`}>
+              {heroManhwa.cover_url ? (
+                <CoverImage src={heroManhwa.cover_url} alt={heroManhwa.title} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center border border-border">
+                  <span className="font-serif text-4xl text-muted-foreground">{heroManhwa.title.substring(0,2).toUpperCase()}</span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </div>
+            
+            <div className="flex flex-col justify-center flex-1 max-w-2xl py-4 md:py-10">
+              <span className="editorial-subheading mb-3">Currently Tracking</span>
+              <h3 className="font-serif text-4xl md:text-5xl lg:text-6xl tracking-tighter leading-[1.1] mb-6 group-hover:text-accent transition-colors line-clamp-2">
+                {heroManhwa.title}
+              </h3>
               
-              return (
-                <article key={m.id} className="continue-item">
-                  <div className={`cover cover-small shrink-0 ${getCoverColorClass(m.title)}`}>
-                    {m.cover_url ? (
-                      <CoverImage src={m.cover_url} alt={m.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <strong className="z-10 text-[18px]">{m.title.substring(0,2).toUpperCase()}</strong>
-                    )}
-                  </div>
-                  
-                  <div className="continue-info">
-                    <div>
-                      <strong className="block hover:underline cursor-pointer" onClick={() => navigate(`/manhwa/${m.id}`)}>{m.title}</strong>
-                      <span>Chapter {m.current_chapter} of {m.total_chapters || "?"}</span>
-                    </div>
-                    <div className="progress" aria-label={`${progressPct}% complete`}>
-                      <span style={{ width: `${progressPct}%` }}></span>
-                    </div>
-                  </div>
-                  
-                  <div className="ml-auto">
-                     <ChapterControls 
-                       manhwa={m} 
-                       userId={user?.id || ''} 
-                       compact={true} 
-                     />
-                  </div>
-                </article>
-              )
-            })}
+              <div className="flex items-baseline gap-4 mb-8">
+                <span className="font-serif text-5xl font-light">Ch. {heroManhwa.current_chapter}</span>
+                {heroManhwa.total_chapters && (
+                  <span className="text-muted-foreground font-sans text-sm tracking-widest uppercase">/ {heroManhwa.total_chapters} Total</span>
+                )}
+              </div>
+              
+              <div className="w-full h-1 bg-surface-elevated mb-10 overflow-hidden">
+                <div 
+                  className="h-full bg-accent transition-all duration-1000 ease-out" 
+                  style={{ width: `${heroManhwa.total_chapters ? Math.min(100, Math.round((heroManhwa.current_chapter / heroManhwa.total_chapters) * 100)) : 100}%` }}
+                />
+              </div>
+              
+              <div onClick={(e) => e.stopPropagation()}>
+                <ChapterControls 
+                  manhwa={heroManhwa} 
+                  userId={user?.id || ''} 
+                  compact={false}
+                  onUpdateSuccess={(newChapter) => toast("Progress Saved", `${heroManhwa.title} updated to Chapter ${newChapter}`)}
+                />
+              </div>
+            </div>
           </div>
         </section>
+      )}
 
-        <section className="panel activity-panel">
-           <div className="section-heading">
-             <div>
-               <h2>Reading activity</h2>
-               <p>Chapters this week</p>
-             </div>
-             <span className="activity-total">{stats.thisWeek} <small>chapters</small></span>
-           </div>
-           
-           <div className="chart">
-             {chartHeights.map((h, i) => (
-               <div key={i} className={i === 5 ? "peak" : ""}>
-                 <span style={{height: `${h}%`}}></span>
-                 <small>{daysOfWeek[i]}</small>
-               </div>
-             ))}
-           </div>
+      {/* Your Collection */}
+      {collection.length > 0 && (
+        <section className="mb-20">
+          <div className="flex items-center justify-between mb-8 border-b border-border pb-4">
+            <h2 className="font-serif text-xl tracking-tight">Your Collection</h2>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {collection.map(m => (
+              <div key={m.id} className="group cursor-pointer flex flex-col library-card" onClick={() => navigate(`/manhwa/${m.id}`)}>
+                <div className={`aspect-[3/4.2] mb-4 w-full library-cover ${getCoverColorClass(m.title)} bg-surface-elevated overflow-hidden`}>
+                  {m.cover_url ? (
+                    <CoverImage src={m.cover_url} alt={m.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center border border-border">
+                      <span className="font-serif text-xl text-muted-foreground">{m.title.substring(0,2).toUpperCase()}</span>
+                    </div>
+                  )}
+                </div>
+                <h4 className="font-medium text-sm truncate group-hover:text-accent transition-colors">{m.title}</h4>
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-xs text-muted-foreground">Ch. {m.current_chapter}</span>
+                  <div onClick={(e) => { e.stopPropagation(); }} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ChapterControls 
+                      manhwa={m} 
+                      userId={user?.id || ''} 
+                      compact={true}
+                      onUpdateSuccess={(newChapter) => toast("Saved", `Ch. ${newChapter}`)}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
-      </div>
+      )}
 
-      <section className="panel recent-panel mt-[14px]">
-         <div className="section-heading">
-            <div>
-              <h2>Recently updated</h2>
-              <p>Your latest progress</p>
-            </div>
-            <button onClick={() => navigate('/history')}>View history <ChevronRight size={14} /></button>
-         </div>
-         
-         <div className="recent-grid">
-            {history.slice(0, 4).length === 0 ? (
-              <p className="text-muted text-xs py-4 col-span-4 text-center">No recent history.</p>
-            ) : history.slice(0, 4).map(h => {
-               const m = manhwas.find(x => x.id === h.manhwa_id)
-               if (!m) return null;
-               return (
-                 <div key={h.id} className="recent-card cursor-pointer hover:bg-[#13141a] transition-colors" onClick={() => navigate(`/manhwa/${m.id}`)}>
-                   <div className={`cover cover-small shrink-0 ${getCoverColorClass(m.title)}`}>
-                     {m.cover_url ? (
-                       <CoverImage src={m.cover_url} alt={m.title} className="w-full h-full object-cover" />
-                     ) : (
-                       <strong className="z-10 text-[18px]">{m.title.substring(0,2).toUpperCase()}</strong>
-                     )}
-                   </div>
-                   <div>
-                     <strong className="block">{m.title}</strong>
-                     <span>Chapter {h.new_chapter}</span>
-                     <small className="block">{formatTimeAgo(h.created_at)}</small>
-                   </div>
+      {/* Recently Updated */}
+      <section>
+        <div className="flex items-center justify-between mb-8 border-b border-border pb-4">
+          <h2 className="font-serif text-xl tracking-tight">Recently Updated</h2>
+          <button onClick={() => navigate('/history')} className="text-xs font-sans uppercase tracking-widest text-muted-foreground hover:text-accent transition-colors">
+            Full History
+          </button>
+        </div>
+        
+        <div className="flex flex-col gap-1">
+          {history.length === 0 ? (
+             <p className="text-muted-foreground text-sm py-8 font-serif italic">No recent reading history.</p>
+          ) : history.slice(0, 5).map(h => {
+             const m = manhwas.find(x => x.id === h.manhwa_id)
+             if (!m) return null;
+             return (
+               <div key={h.id} className="group flex items-center justify-between py-4 border-b border-border/50 hover:border-accent/50 transition-colors cursor-pointer" onClick={() => navigate(`/manhwa/${m.id}`)}>
+                 <div className="flex items-center gap-6 flex-1 min-w-0">
+                    <div className="w-10 h-14 shrink-0 bg-surface-elevated overflow-hidden">
+                       {m.cover_url ? (
+                         <CoverImage src={m.cover_url} alt={m.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300" />
+                       ) : (
+                         <div className="w-full h-full flex items-center justify-center border border-border">
+                           <span className="text-[10px] text-muted-foreground">{m.title.substring(0,1).toUpperCase()}</span>
+                         </div>
+                       )}
+                    </div>
+                    <div className="min-w-0 pr-4">
+                      <h4 className="font-serif text-lg truncate group-hover:text-accent transition-colors">{m.title}</h4>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider font-sans">Chapter {h.previous_chapter} <ArrowRight size={10} className="inline mx-1" /> Chapter {h.new_chapter}</span>
+                    </div>
                  </div>
-               )
-            })}
-         </div>
+                 <div className="text-right shrink-0">
+                    <span className="text-xs text-muted-foreground font-sans block">{formatTimeAgo(h.created_at)}</span>
+                 </div>
+               </div>
+             )
+          })}
+        </div>
       </section>
     </div>
   )

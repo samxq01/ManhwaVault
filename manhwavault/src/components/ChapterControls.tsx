@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react"
-
 import { Input } from "@/components/ui/input"
-import { Minus, Plus } from "lucide-react"
+import { Minus, Plus, Check } from "lucide-react"
 import { manhwaService } from "@/services/manhwaService"
 import { historyService } from "@/services/historyService"
 import type { Manhwa } from "@/types"
@@ -18,9 +17,10 @@ export function ChapterControls({ manhwa, userId, onUpdateSuccess, onError, comp
   const [localChapter, setLocalChapter] = useState(manhwa.current_chapter)
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(manhwa.current_chapter.toString())
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [successPing, setSuccessPing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   
-  // Sync local state if prop changes from outside (e.g. initial load)
   useEffect(() => {
     setLocalChapter(manhwa.current_chapter)
   }, [manhwa.current_chapter])
@@ -38,16 +38,18 @@ export function ChapterControls({ manhwa, userId, onUpdateSuccess, onError, comp
 
     const previousChapter = manhwa.current_chapter
     
-    // 1. Optimistic UI update
+    // Optimistic UI update
     setLocalChapter(newChapter)
+    setIsUpdating(true)
+    setSuccessPing(true)
+    
+    setTimeout(() => setSuccessPing(false), 1000)
 
     try {
-      // 2. Save to Supabase
       await manhwaService.updateManhwa(manhwa.id, userId, {
         current_chapter: newChapter
       })
       
-      // 3. Create reading history
       await historyService.addHistoryRecord({
         user_id: userId,
         manhwa_id: manhwa.id,
@@ -55,15 +57,12 @@ export function ChapterControls({ manhwa, userId, onUpdateSuccess, onError, comp
         new_chapter: newChapter,
       })
 
-      if (onUpdateSuccess) {
-        onUpdateSuccess(newChapter)
-      }
+      if (onUpdateSuccess) onUpdateSuccess(newChapter)
     } catch (err: any) {
-      // 4. Revert optimistic UI on failure and show error
       setLocalChapter(previousChapter)
-      if (onError) {
-        onError(err.message || "Failed to update chapter")
-      }
+      if (onError) onError(err.message || "Failed to update chapter")
+    } finally {
+      setIsUpdating(false)
     }
   }
 
@@ -76,99 +75,114 @@ export function ChapterControls({ manhwa, userId, onUpdateSuccess, onError, comp
   const handleDecrement = (e?: React.MouseEvent) => {
     e?.preventDefault()
     e?.stopPropagation()
-    if (localChapter > 0) {
-      saveChapter(localChapter - 1)
-    }
+    if (localChapter > 0) saveChapter(localChapter - 1)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Prevent triggering if typing in an input
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-      return
-    }
-    
-    if (e.key === "ArrowUp") {
-      e.preventDefault()
-      e.stopPropagation()
-      handleIncrement()
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault()
-      e.stopPropagation()
-      handleDecrement()
-    }
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+    if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); handleIncrement() }
+    else if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); handleDecrement() }
   }
 
   const handleEditSubmit = (e?: React.FormEvent | React.KeyboardEvent) => {
     e?.preventDefault()
     e?.stopPropagation()
     const parsed = parseInt(editValue, 10)
-    if (!isNaN(parsed) && parsed >= 0) {
-      saveChapter(parsed)
-    }
+    if (!isNaN(parsed) && parsed >= 0) saveChapter(parsed)
     setIsEditing(false)
   }
 
   const handleEditKeyDown = (e: React.KeyboardEvent) => {
     e.stopPropagation()
-    if (e.key === "Enter") {
-      handleEditSubmit(e)
-    } else if (e.key === "Escape") {
-      setIsEditing(false)
-      setEditValue(localChapter.toString())
-    }
+    if (e.key === "Enter") handleEditSubmit(e)
+    else if (e.key === "Escape") { setIsEditing(false); setEditValue(localChapter.toString()) }
+  }
+
+  if (compact) {
+    return (
+      <div 
+        className="flex items-center gap-1"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button 
+          onClick={handleDecrement}
+          disabled={localChapter <= 0}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-elevated border border-border text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          <Minus size={14} />
+        </button>
+        <div className="relative w-8 h-8">
+          <button 
+            onClick={handleIncrement}
+            disabled={isUpdating}
+            className={`absolute inset-0 flex items-center justify-center rounded-full transition-all duration-300 ${successPing ? 'bg-accent text-background scale-110 shadow-lg' : 'bg-surface-elevated border border-border text-foreground hover:bg-accent hover:text-background hover:border-accent'}`}
+          >
+            {successPing ? <Check size={14} /> : <Plus size={16} />}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div 
-      className={`chapter-control ${compact ? "chapter-compact" : ""}`}
+      className="flex items-center gap-4 bg-surface p-2 rounded-md border border-border"
       tabIndex={0} 
       onKeyDown={handleKeyDown}
-      onClick={(e) => e.stopPropagation()} // Prevent card clicks
+      onClick={(e) => e.stopPropagation()}
     >
       <button 
         aria-label="Decrease chapter"
         onClick={handleDecrement}
         disabled={localChapter <= 0}
+        className="w-12 h-12 flex items-center justify-center rounded-sm bg-surface-elevated border border-border text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
       >
-        <Minus size={compact ? 18 : 20} />
+        <Minus size={18} />
       </button>
       
-      {!compact && (
-        <div>
-          <span>Chapter</span>
-          {isEditing ? (
-            <Input
-              ref={inputRef}
-              type="number"
-              min="0"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onKeyDown={handleEditKeyDown}
-              onBlur={handleEditSubmit}
-              className="w-16 text-center h-8 font-bold p-1 bg-transparent border-none text-white focus-visible:ring-1"
-              autoFocus
-            />
-          ) : (
+      <div className="flex flex-col items-center justify-center min-w-[80px]">
+        <span className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Chapter</span>
+        {isEditing ? (
+          <Input
+            ref={inputRef}
+            type="number"
+            min="0"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleEditKeyDown}
+            onBlur={handleEditSubmit}
+            className="w-16 text-center h-8 font-serif text-2xl p-0 bg-transparent border-none text-foreground focus-visible:ring-1 focus-visible:ring-accent"
+          />
+        ) : (
+          <div 
+            className="relative flex items-center justify-center cursor-text overflow-hidden h-8 w-16 group"
+            onClick={(e) => {
+              e.stopPropagation()
+              setEditValue(localChapter.toString())
+              setIsEditing(true)
+            }}
+          >
             <strong 
-              className="cursor-text select-none"
-              onClick={(e) => {
-                e.stopPropagation()
-                setEditValue(localChapter.toString())
-                setIsEditing(true)
-              }}
+              key={localChapter} 
+              className="font-serif text-3xl tracking-tighter select-none animate-in slide-in-from-bottom-4 fade-in duration-300 group-hover:text-accent transition-colors"
             >
               {localChapter}
             </strong>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       <button 
-        className="increment"
         aria-label="Increase chapter"
         onClick={handleIncrement}
+        disabled={isUpdating}
+        className={`w-12 h-12 flex items-center justify-center rounded-sm transition-all duration-300 ${
+          successPing 
+            ? 'bg-accent text-background scale-105 shadow-md border-accent' 
+            : 'bg-surface-elevated border border-border text-foreground hover:bg-accent hover:text-background hover:border-accent shadow-sm'
+        }`}
       >
-        <Plus size={compact ? 18 : 20} />
+        {successPing ? <Check size={20} /> : <Plus size={20} />}
       </button>
     </div>
   )
