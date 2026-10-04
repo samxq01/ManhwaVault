@@ -51,14 +51,14 @@ export const statisticsService = {
         .from('manhwa')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('status', 'Reading'),
+        .eq('status', 'reading'),
         
       // 3. Completed
       supabase
         .from('manhwa')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('status', 'Completed'),
+        .eq('status', 'completed'),
         
       // 4. Chapters Read (Total history records)
       supabase

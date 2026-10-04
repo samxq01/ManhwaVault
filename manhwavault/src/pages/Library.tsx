@@ -10,6 +10,7 @@ import { CoverImage } from "@/components/CoverImage"
 import { ChapterControls } from "@/components/ChapterControls"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Manhwa, Tag } from "@/types"
+import { STATUS_MAPPING } from "@/types"
 
 export function Library() {
   const { user } = useAuth()
@@ -85,7 +86,7 @@ export function Library() {
         case "chapter_lowest": return (a.current_chapter || 0) - (b.current_chapter || 0)
         case "rating_highest": return (b.rating || 0) - (a.rating || 0)
         case "recently_updated":
-        default: return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        default: return new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
       }
     })
 
@@ -129,13 +130,19 @@ export function Library() {
         
         <div className="hidden lg:flex items-center gap-2 flex-wrap">
           <div className="flex bg-surface p-1 rounded-sm border border-border">
-            {['All', 'Reading', 'Completed', 'On Hold'].map(status => (
+            <button 
+              className={`px-4 py-1.5 rounded-sm text-[11px] uppercase tracking-widest font-semibold transition-colors ${statusFilter === 'All' ? 'bg-surface-elevated text-accent' : 'text-muted-foreground hover:text-foreground'}`} 
+              onClick={() => setStatusFilter('All')}
+            >
+              All
+            </button>
+            {Object.entries(STATUS_MAPPING).filter(([k]) => ['reading', 'completed', 'on_hold'].includes(k)).map(([key, label]) => (
               <button 
-                key={status}
-                className={`px-4 py-1.5 rounded-sm text-[11px] uppercase tracking-widest font-semibold transition-colors ${statusFilter === status ? 'bg-surface-elevated text-accent' : 'text-muted-foreground hover:text-foreground'}`} 
-                onClick={() => setStatusFilter(status)}
+                key={key}
+                className={`px-4 py-1.5 rounded-sm text-[11px] uppercase tracking-widest font-semibold transition-colors ${statusFilter === key ? 'bg-surface-elevated text-accent' : 'text-muted-foreground hover:text-foreground'}`} 
+                onClick={() => setStatusFilter(key)}
               >
-                {status}
+                {label}
               </button>
             ))}
           </div>
@@ -226,7 +233,7 @@ export function Library() {
                 <h2 className="font-serif text-sm line-clamp-1 group-hover:text-accent transition-colors">{m.title}</h2>
                 <div className="flex justify-between items-baseline mt-1">
                   <span className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground">
-                    Ch. {m.current_chapter} {m.status !== 'Reading' && `• ${m.status}`}
+                    Ch. {m.current_chapter} {m.status !== 'reading' && `• ${STATUS_MAPPING[m.status]}`}
                   </span>
                 </div>
                 
@@ -257,13 +264,19 @@ export function Library() {
               <div>
                 <label className="editorial-subheading block mb-3">Status</label>
                 <div className="flex flex-wrap gap-2">
-                  {['All', 'Reading', 'Completed', 'On Hold', 'Dropped', 'Plan to Read'].map(status => (
+                  <button 
+                    onClick={() => setStatusFilter('All')}
+                    className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-widest border transition-colors ${statusFilter === 'All' ? 'bg-accent/10 border-accent/30 text-accent' : 'bg-surface-elevated border-transparent text-muted-foreground'}`}
+                  >
+                    All
+                  </button>
+                  {Object.entries(STATUS_MAPPING).map(([key, label]) => (
                     <button 
-                      key={status}
-                      onClick={() => setStatusFilter(status)}
-                      className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-widest border transition-colors ${statusFilter === status ? 'bg-accent/10 border-accent/30 text-accent' : 'bg-surface-elevated border-transparent text-muted-foreground'}`}
+                      key={key}
+                      onClick={() => setStatusFilter(key)}
+                      className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-widest border transition-colors ${statusFilter === key ? 'bg-accent/10 border-accent/30 text-accent' : 'bg-surface-elevated border-transparent text-muted-foreground'}`}
                     >
-                      {status}
+                      {label}
                     </button>
                   ))}
                 </div>

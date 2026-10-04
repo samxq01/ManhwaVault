@@ -4,12 +4,14 @@ import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
 import { tagService } from "@/services/tagService"
 import { storageService } from "@/services/storageService"
+import { useToast } from "@/contexts/ToastContext"
 import { ManhwaForm } from "@/components/ManhwaForm"
 import type { ManhwaInsert } from "@/types"
 
 export function ManhwaAdd() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (data: Omit<ManhwaInsert, "user_id">, tagNames: string[], coverFile: File | null) => {
@@ -48,6 +50,9 @@ export function ManhwaAdd() {
       }
 
       navigate(`/manhwa/${newManhwa.id}`)
+    } catch (err: any) {
+      console.error("Save failed:", err)
+      toast("Save Failed", err.message || "Could not save archive entry. Please try again.")
     } finally {
       setLoading(false)
     }

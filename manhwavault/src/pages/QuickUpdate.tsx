@@ -23,7 +23,7 @@ export function QuickUpdate() {
       try {
         setLoading(true)
         const data = await manhwaService.getManhwa(user.id)
-        const relevant = data.filter(m => m.status === "Reading" || m.status === "On Hold")
+        const relevant = data.filter(m => m.status === "reading" || m.status === "on_hold")
         relevant.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
         setManhwas(relevant)
       } catch (err: any) {

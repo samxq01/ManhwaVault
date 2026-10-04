@@ -8,7 +8,8 @@ import { useToast } from "@/contexts/ToastContext"
 import { CoverImage } from "@/components/CoverImage"
 import { ChapterControls } from "@/components/ChapterControls"
 import { ArrowLeft, Edit, Trash2, Heart, Loader2 } from "lucide-react"
-import type { Manhwa, Tag } from "@/types"
+import type { Manhwa, Tag, ManhwaType } from "@/types"
+import { STATUS_MAPPING, TYPE_MAPPING } from "@/types"
 
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -208,11 +209,11 @@ export function ManhwaDetails() {
             <div className="grid grid-cols-2 gap-y-4 text-sm">
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Status</span>
-                <span className="font-serif">{manhwa.status}</span>
+                <span className="font-serif">{STATUS_MAPPING[manhwa.status]}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Type</span>
-                <span className="font-serif">{manhwa.type || "N/A"}</span>
+                <span className="font-serif">{manhwa.type ? TYPE_MAPPING[manhwa.type as ManhwaType] || manhwa.type : "N/A"}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Chapters</span>

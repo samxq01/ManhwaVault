@@ -138,10 +138,10 @@ export function Statistics() {
           
           <div className="flex flex-col gap-6 mt-4">
             {[
-              { label: 'Reading', count: distribution['Reading'] || 0, icon: <Activity size={14} />, color: 'text-accent' },
-              { label: 'Completed', count: distribution['Completed'] || 0, icon: <CheckCircle size={14} />, color: 'text-muted-foreground' },
-              { label: 'On Hold', count: distribution['On Hold'] || 0, icon: <Book size={14} />, color: 'text-muted-foreground/70' },
-              { label: 'Plan to Read', count: distribution['Plan to Read'] || 0, icon: <Book size={14} />, color: 'text-muted-foreground/50' }
+              { label: 'Reading', count: distribution['reading'] || 0, icon: <Activity size={14} />, color: 'text-accent' },
+              { label: 'Completed', count: distribution['completed'] || 0, icon: <CheckCircle size={14} />, color: 'text-muted-foreground' },
+              { label: 'On Hold', count: distribution['on_hold'] || 0, icon: <Book size={14} />, color: 'text-muted-foreground/70' },
+              { label: 'Plan to Read', count: distribution['plan_to_read'] || 0, icon: <Book size={14} />, color: 'text-muted-foreground/50' }
             ].map(item => (
               <div key={item.label} className="flex items-center justify-between group">
                 <div className="flex items-center gap-3">

@@ -18,8 +18,8 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
   const [formData, setFormData] = useState<Omit<ManhwaInsert, 'user_id'>>({
     title: initialData?.title || "",
     alternative_title: initialData?.alternative_title || "",
-    type: initialData?.type || "Manhwa",
-    status: initialData?.status || "Reading",
+    type: initialData?.type || "manhwa",
+    status: initialData?.status || "reading",
     current_chapter: initialData?.current_chapter || 0,
     total_chapters: initialData?.total_chapters || 0,
     cover_url: initialData?.cover_url || "",
@@ -104,8 +104,33 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
 
     try {
       const submitData: any = { ...formData }
+      
+      submitData.title = formData.title.trim()
+      
       if (!submitData.total_chapters) submitData.total_chapters = null
       if (!submitData.rating) submitData.rating = null
+      
+      if (typeof submitData.alternative_title === 'string') {
+        const trimmed = submitData.alternative_title.trim()
+        submitData.alternative_title = trimmed || null
+      }
+      
+      if (typeof submitData.cover_url === 'string') {
+        const trimmed = submitData.cover_url.trim()
+        submitData.cover_url = trimmed || null
+      }
+      
+      if (typeof submitData.description === 'string') {
+        const trimmed = submitData.description.trim()
+        submitData.description = trimmed || null
+      }
+      
+      if (typeof submitData.notes === 'string') {
+        const trimmed = submitData.notes.trim()
+        submitData.notes = trimmed || null
+      }
+
+      if (!submitData.type) submitData.type = null
       
       const parsedTags = tagsString
         .split(",")
@@ -191,27 +216,25 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
             />
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
             <div className="space-y-2">
               <label htmlFor="type" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Format</label>
               <select id="type" name="type" value={formData.type || ''} onChange={handleChange} className="w-full bg-surface-elevated border border-border px-4 py-3 text-sm focus:outline-none focus:border-accent">
-                <option value="Manhwa">Manhwa</option>
-                <option value="Manga">Manga</option>
-                <option value="Manhua">Manhua</option>
-                <option value="Webtoon">Webtoon</option>
-                <option value="Novel">Novel</option>
-                <option value="Other">Other</option>
+                <option value="manhwa">Manhwa</option>
+                <option value="manga">Manga</option>
+                <option value="manhua">Manhua</option>
+                <option value="webtoon">Webtoon</option>
               </select>
             </div>
 
             <div className="space-y-2">
               <label htmlFor="status" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Status</label>
               <select id="status" name="status" value={formData.status} onChange={handleChange} className="w-full bg-surface-elevated border border-border px-4 py-3 text-sm focus:outline-none focus:border-accent">
-                <option value="Reading">Reading</option>
-                <option value="Completed">Completed</option>
-                <option value="On Hold">On Hold</option>
-                <option value="Dropped">Dropped</option>
-                <option value="Plan to Read">Plan to Read</option>
+                <option value="reading">Reading</option>
+                <option value="completed">Completed</option>
+                <option value="on_hold">On Hold</option>
+                <option value="dropped">Dropped</option>
+                <option value="plan_to_read">Plan to Read</option>
               </select>
             </div>
             
@@ -223,6 +246,11 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
             <div className="space-y-2">
               <label htmlFor="total_chapters" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Total Ch.</label>
               <input id="total_chapters" name="total_chapters" type="number" min="0" value={formData.total_chapters || ''} onChange={handleChange} placeholder="?" className="w-full bg-surface-elevated border border-border px-4 py-3 text-sm focus:outline-none focus:border-accent" />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="rating" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Rating / 10</label>
+              <input id="rating" name="rating" type="number" min="0" max="10" step="0.1" value={formData.rating || ''} onChange={handleChange} placeholder="-" className="w-full bg-surface-elevated border border-border px-4 py-3 text-sm focus:outline-none focus:border-accent" />
             </div>
           </div>
 

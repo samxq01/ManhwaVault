@@ -89,7 +89,7 @@ export function Dashboard() {
 
 
   const continueReading = manhwas
-    .filter(m => m.status === 'Reading')
+    .filter(m => m.status === 'reading')
     .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
 
   // Continue Reading Algorithm
@@ -97,7 +97,7 @@ export function Dashboard() {
   const collection = continueReading.slice(1, 6)
   
   const totalChapters = manhwas.reduce((acc, m) => acc + (m.current_chapter || 0), 0)
-  const currentlyReadingCount = manhwas.filter(m => m.status === 'Reading').length
+  const currentlyReadingCount = manhwas.filter(m => m.status === 'reading').length
   
   // Calculate a streak (mocked based on recent history for now since we don't have a complex streak algorithm yet)
   const calculateStreak = () => {
