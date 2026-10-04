@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { Plus, Search, Filter, X, Heart, Loader2 } from "lucide-react"
+import { Plus, Search, Filter, X, Heart } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
 import { tagService } from "@/services/tagService"
@@ -8,6 +8,7 @@ import { getCoverColorClass } from "@/utils/coverColors"
 import { useToast } from "@/contexts/ToastContext"
 import { CoverImage } from "@/components/CoverImage"
 import { ChapterControls } from "@/components/ChapterControls"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { Manhwa, Tag } from "@/types"
 
 export function Library() {
@@ -168,14 +169,28 @@ export function Library() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-32">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 gap-y-10">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="flex flex-col">
+              <Skeleton className="w-full aspect-[3/4.2] mb-4" />
+              <Skeleton className="h-4 w-3/4 mb-1" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          ))}
         </div>
       ) : filteredAndSortedManhwas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-border rounded-sm">
-          <BookOpen className="text-muted-foreground mb-4 opacity-50" size={48} />
-          <h2 className="font-serif text-2xl mb-2 text-muted-foreground">Archive Empty</h2>
-          <p className="text-sm text-muted-foreground/70 max-w-sm">No titles match your current filters. Adjust your search or add a new title.</p>
+        <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-border/50 bg-surface-elevated/30">
+          <h2 className="font-sans text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-4">YOUR VAULT IS EMPTY</h2>
+          <p className="text-sm font-serif text-foreground/70 max-w-sm mb-6 leading-relaxed">
+            Your collection starts here.<br/>
+            Add your first title and start tracking your reading journey.
+          </p>
+          <button 
+            onClick={() => navigate('/manhwa/new')} 
+            className="text-xs font-sans uppercase tracking-widest text-accent font-semibold hover:text-accent/80 transition-colors flex items-center gap-2"
+          >
+            <Plus size={14} /> Add Title
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 gap-y-10">
@@ -287,22 +302,4 @@ export function Library() {
   )
 }
 
-function BookOpen(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-    </svg>
-  )
-}
+

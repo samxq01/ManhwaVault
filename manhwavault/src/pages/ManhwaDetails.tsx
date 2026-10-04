@@ -10,6 +10,8 @@ import { ChapterControls } from "@/components/ChapterControls"
 import { ArrowLeft, Edit, Trash2, Heart, Loader2 } from "lucide-react"
 import type { Manhwa, Tag } from "@/types"
 
+import { Skeleton } from "@/components/ui/skeleton"
+
 export function ManhwaDetails() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
@@ -20,7 +22,7 @@ export function ManhwaDetails() {
   const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [deleteState, setDeleteState] = useState<'idle' | 'confirm' | 'deleting'>('idle')
 
   useEffect(() => {
     async function loadManhwa() {
@@ -61,23 +63,55 @@ export function ManhwaDetails() {
 
   const handleDelete = async () => {
     if (!user || !manhwa) return
-    if (window.confirm("Are you sure you want to delete this title from your collection?")) {
-      setDeleting(true)
-      try {
-        await manhwaService.deleteManhwa(manhwa.id, user.id)
-        await storageService.deleteAllManhwaCovers(user.id, manhwa.id).catch(e => console.error(e))
-        navigate("/library")
-      } catch (err: any) {
-        setError(err.message || "Failed to delete title.")
-        setDeleting(false)
-      }
+    setDeleteState('deleting')
+    try {
+      await manhwaService.deleteManhwa(manhwa.id, user.id)
+      await storageService.deleteAllManhwaCovers(user.id, manhwa.id).catch(e => console.error(e))
+      navigate("/library")
+    } catch (err: any) {
+      setError(err.message || "Failed to delete title.")
+      setDeleteState('idle')
     }
   }
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-[80vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+      <div className="px-6 md:px-12 py-10 max-w-7xl mx-auto min-h-screen">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12 border-b border-border pb-6">
+          <Skeleton className="h-4 w-20" />
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
+          <div className="lg:col-span-4 flex flex-col gap-8">
+            <Skeleton className="w-full aspect-[3/4.2]" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-48 w-full" />
+          </div>
+
+          <div className="lg:col-span-8 flex flex-col">
+            <div className="mb-12">
+              <Skeleton className="h-16 w-3/4 mb-4" />
+              <Skeleton className="h-6 w-1/2" />
+            </div>
+
+            <div className="space-y-12">
+              <section>
+                <Skeleton className="h-4 w-24 mb-4" />
+                <Skeleton className="h-32 w-full" />
+              </section>
+
+              <section>
+                <Skeleton className="h-4 w-32 mb-4" />
+                <Skeleton className="h-32 w-full" />
+              </section>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -115,13 +149,32 @@ export function ManhwaDetails() {
             <Edit size={14} /> Edit
           </Link>
           
-          <button 
-            onClick={handleDelete} 
-            disabled={deleting}
-            className="flex items-center gap-2 text-destructive hover:text-destructive/80 transition-colors"
-          >
-            {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Delete
-          </button>
+          {deleteState === 'confirm' ? (
+            <div className="flex items-center gap-2 border border-destructive/50 bg-destructive/10 px-3 py-1.5 rounded-sm">
+              <span className="text-destructive font-sans uppercase tracking-widest text-[10px]">Delete title?</span>
+              <button 
+                onClick={() => setDeleteState('idle')}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+              <span className="text-border">|</span>
+              <button 
+                onClick={handleDelete} 
+                className="text-destructive hover:text-destructive/80 transition-colors font-bold"
+              >
+                Delete
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setDeleteState('confirm')} 
+              disabled={deleteState === 'deleting'}
+              className="flex items-center gap-2 text-destructive hover:text-destructive/80 transition-colors"
+            >
+              {deleteState === 'deleting' ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Delete
+            </button>
+          )}
         </div>
       </div>
 

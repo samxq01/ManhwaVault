@@ -17,6 +17,7 @@ import { CustomCursor } from "./components/CustomCursor"
 import { ManhwaAdd } from "./pages/ManhwaAdd"
 import { ManhwaEdit } from "./pages/ManhwaEdit"
 import { ManhwaDetails } from "./pages/ManhwaDetails"
+import { NotFound } from "./pages/NotFound"
 
 function App() {
   return (
@@ -43,8 +44,11 @@ function App() {
               <Route path="history" element={<History />} />
               <Route path="statistics" element={<Statistics />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
             </Route>
           </Route>
+          
+          <Route path="*" element={<NotFound />} />
         </Routes>
         </BrowserRouter>
       </ToastProvider>
