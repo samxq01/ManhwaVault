@@ -8,18 +8,20 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt', // We will use a prompt or autoUpdate. Prompt is better for "New version available" as requested.
-      includeAssets: ['favicon.svg'],
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'],
       manifest: {
+        id: '/manhwavault',
         name: 'ManhwaVault',
         short_name: 'ManhwaVault',
-        description: 'A personal manhwa reading tracker and library.',
-        theme_color: '#09090b',
-        background_color: '#09090b',
+        description: 'A modern personal manhwa reading tracker and statistics dashboard.',
+        theme_color: '#0D0D0C',
+        background_color: '#0D0D0C',
         display: 'standalone',
         start_url: '/',
         scope: '/',
-        orientation: 'portrait-primary',
+        orientation: 'portrait',
+        prefer_related_applications: false,
         icons: [
           {
             src: '/icons/icon-192.png',
@@ -58,7 +60,9 @@ export default defineConfig({
               }
             }
           }
-        ]
+        ],
+        // Do NOT aggressively cache Supabase database requests.
+        // Navigate fallback already allows SPA routing, we don't cache supabase API requests here.
       }
     })
   ],

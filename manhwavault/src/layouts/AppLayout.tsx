@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { Library, Zap, History, BarChart2, Settings, Book, Flame, MoreHorizontal, ChevronRight, Search, LogOut } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { PwaPrompt } from "@/components/PwaPrompt"
+import { InstallPrompt } from "@/components/InstallPrompt"
 import { useNetworkStatus } from "@/hooks/useNetworkStatus"
 import { useEffect, useState } from "react"
 
@@ -185,6 +186,7 @@ export function AppLayout() {
       </nav>
       
       <PwaPrompt />
+      <InstallPrompt />
     </div>
   )
 }
