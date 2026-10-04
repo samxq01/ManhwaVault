@@ -1,12 +1,6 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { ImagePlus, X } from "lucide-react"
+import { ImagePlus, X, Loader2 } from "lucide-react"
 import type { Manhwa, ManhwaInsert, Tag } from "@/types"
 
 interface ManhwaFormProps {
@@ -19,6 +13,7 @@ interface ManhwaFormProps {
 export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading }: ManhwaFormProps) {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [formData, setFormData] = useState<Omit<ManhwaInsert, 'user_id'>>({
     title: initialData?.title || "",
@@ -26,7 +21,7 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
     type: initialData?.type || "Manhwa",
     status: initialData?.status || "Reading",
     current_chapter: initialData?.current_chapter || 0,
-    total_chapters: initialData?.total_chapters || 0, // Using 0 as empty equivalent for input, handled on submit
+    total_chapters: initialData?.total_chapters || 0,
     cover_url: initialData?.cover_url || "",
     description: initialData?.description || "",
     rating: initialData?.rating || 0,
@@ -38,12 +33,9 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
   
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(initialData?.cover_url || null)
+  const [isDragging, setIsDragging] = useState(false)
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Simple frontend validation before form submission
+  const processFile = (file: File) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
     if (!allowedTypes.includes(file.type)) {
       setError("Invalid file type. Only JPEG, PNG, WEBP, and GIF are allowed.")
@@ -59,15 +51,36 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
     setCoverPreview(URL.createObjectURL(file))
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) processFile(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) processFile(file)
+  }
+
   const clearCover = () => {
     setCoverFile(null)
     setCoverPreview(null)
     setFormData(prev => ({ ...prev, cover_url: "" }))
+    if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
-    
     if (type === 'number') {
       setFormData(prev => ({ ...prev, [name]: value ? Number(value) : 0 }))
     } else {
@@ -84,19 +97,10 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
     e.preventDefault()
     setError(null)
     
-    // Validation
-    if (!formData.title.trim()) {
-      return setError("Title is required.")
-    }
-    if (formData.current_chapter < 0) {
-      return setError("Current chapter cannot be negative.")
-    }
-    if (formData.total_chapters && formData.total_chapters < 0) {
-      return setError("Total chapters cannot be negative.")
-    }
-    if (formData.rating && (formData.rating < 0 || formData.rating > 10)) {
-      return setError("Rating must be between 0 and 10.")
-    }
+    if (!formData.title.trim()) return setError("Title is required.")
+    if (formData.current_chapter < 0) return setError("Current chapter cannot be negative.")
+    if (formData.total_chapters && formData.total_chapters < 0) return setError("Total chapters cannot be negative.")
+    if (formData.rating && (formData.rating < 0 || formData.rating > 10)) return setError("Rating must be between 0 and 10.")
 
     try {
       const submitData: any = { ...formData }
@@ -115,139 +119,159 @@ export function ManhwaForm({ initialData, initialTags = [], onSubmit, isLoading 
   }
 
   return (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>{initialData ? "Edit Title" : "Add New Title"}</CardTitle>
-      </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-6">
-          {error && (
-            <div className="p-3 bg-destructive/15 text-destructive rounded-md text-sm">
-              {error}
-            </div>
-          )}
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
-              <Input id="title" name="title" value={formData.title} onChange={handleChange} required />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="alternative_title">Alternative Title</Label>
-              <Input id="alternative_title" name="alternative_title" value={formData.alternative_title || ''} onChange={handleChange} />
-            </div>
+    <form onSubmit={handleSubmit} className="max-w-5xl mx-auto flex flex-col gap-12">
+      {error && (
+        <div className="p-4 bg-destructive/10 text-destructive border border-destructive/20 text-sm flex items-center justify-center">
+          {error}
+        </div>
+      )}
 
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        {/* Left Column: Cover & Quick Actions */}
+        <div className="lg:col-span-4 flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Cover Artwork</span>
+            
+            {coverPreview ? (
+              <div className="relative w-full aspect-[3/4.2] bg-surface-elevated border border-border group overflow-hidden">
+                <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <button
+                  type="button"
+                  className="absolute top-4 right-4 bg-background/80 backdrop-blur-md w-8 h-8 flex items-center justify-center text-foreground hover:text-destructive transition-colors border border-border"
+                  onClick={clearCover}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <label 
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                htmlFor="cover-upload" 
+                className={`flex flex-col items-center justify-center w-full aspect-[3/4.2] border border-dashed transition-colors cursor-pointer ${isDragging ? 'border-accent bg-accent/5 text-accent' : 'border-border bg-surface hover:bg-surface-elevated text-muted-foreground'}`}
+              >
+                <ImagePlus size={32} className="mb-4 opacity-50" />
+                <span className="text-xs font-sans uppercase tracking-widest font-semibold">Upload Cover</span>
+                <span className="text-[10px] mt-2 opacity-50">Drag & Drop or Click</span>
+                <input id="cover-upload" type="file" ref={fileInputRef} accept="image/jpeg, image/png, image/webp, image/gif" className="hidden" onChange={handleFileChange} />
+              </label>
+            )}
+          </div>
+          
+          <label className="flex items-center gap-3 cursor-pointer group mt-4 border border-border bg-surface p-4 hover:bg-surface-elevated transition-colors">
+            <input 
+              type="checkbox" 
+              name="is_favorite" 
+              checked={formData.is_favorite} 
+              onChange={handleCheckboxChange} 
+              className="w-4 h-4 accent-accent"
+            />
+            <span className="text-xs uppercase tracking-widest font-semibold group-hover:text-accent transition-colors">Add to Favorites</span>
+          </label>
+        </div>
+
+        {/* Right Column: Details */}
+        <div className="lg:col-span-8 flex flex-col gap-8">
+          <div className="space-y-2">
+            <label htmlFor="title" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Primary Title *</label>
+            <input 
+              id="title" name="title" value={formData.title} onChange={handleChange} required 
+              className="w-full bg-transparent border-b border-border py-3 text-2xl font-serif focus:outline-none focus:border-accent transition-colors placeholder:text-muted-foreground/30"
+              placeholder="e.g. Solo Leveling"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <label htmlFor="alternative_title" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Alternative Title</label>
+            <input 
+              id="alternative_title" name="alternative_title" value={formData.alternative_title || ''} onChange={handleChange} 
+              className="w-full bg-surface-elevated border border-border px-4 py-3 text-sm focus:outline-none focus:border-accent transition-colors"
+              placeholder="Korean, Japanese, or alternative English title"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="type">Type</Label>
-              <Select id="type" name="type" value={formData.type || ''} onChange={handleChange}>
+              <label htmlFor="type" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Format</label>
+              <select id="type" name="type" value={formData.type || ''} onChange={handleChange} className="w-full bg-surface-elevated border border-border px-4 py-3 text-sm focus:outline-none focus:border-accent">
                 <option value="Manhwa">Manhwa</option>
                 <option value="Manga">Manga</option>
                 <option value="Manhua">Manhua</option>
                 <option value="Webtoon">Webtoon</option>
                 <option value="Novel">Novel</option>
                 <option value="Other">Other</option>
-              </Select>
+              </select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select id="status" name="status" value={formData.status} onChange={handleChange}>
+              <label htmlFor="status" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Status</label>
+              <select id="status" name="status" value={formData.status} onChange={handleChange} className="w-full bg-surface-elevated border border-border px-4 py-3 text-sm focus:outline-none focus:border-accent">
                 <option value="Reading">Reading</option>
                 <option value="Completed">Completed</option>
                 <option value="On Hold">On Hold</option>
                 <option value="Dropped">Dropped</option>
                 <option value="Plan to Read">Plan to Read</option>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="current_chapter">Current Chapter *</Label>
-              <Input id="current_chapter" name="current_chapter" type="number" min="0" value={formData.current_chapter} onChange={handleChange} required />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="total_chapters">Total Chapters</Label>
-              <Input id="total_chapters" name="total_chapters" type="number" min="0" value={formData.total_chapters || ''} onChange={handleChange} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="rating">Rating (0-10)</Label>
-              <Input id="rating" name="rating" type="number" min="0" max="10" step="0.1" value={formData.rating || ''} onChange={handleChange} />
-            </div>
-
-            <div className="space-y-3 md:col-span-2">
-              <Label>Cover Image</Label>
-              
-              {coverPreview ? (
-                <div className="relative w-32 h-48 rounded-lg overflow-hidden border">
-                  <img src={coverPreview} alt={formData.title ? `Cover of ${formData.title}` : "Cover preview"} className="w-full h-full object-cover" />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-80 hover:opacity-100"
-                    onClick={clearCover}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center w-full max-w-sm">
-                  <label htmlFor="cover-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <ImagePlus className="w-8 h-8 mb-2 text-muted-foreground" />
-                      <p className="mb-1 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                      <p className="text-xs text-muted-foreground">JPEG, PNG, WEBP (Max 5MB)</p>
-                    </div>
-                    <input id="cover-upload" type="file" accept="image/jpeg, image/png, image/webp, image/gif" className="hidden" onChange={handleFileChange} />
-                  </label>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="tags">Tags (comma separated)</Label>
-              <Input 
-                id="tags" 
-                value={tagsString} 
-                onChange={(e) => setTagsString(e.target.value)} 
-                placeholder="Action, Romance, Murim" 
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" name="description" value={formData.description || ''} onChange={handleChange} rows={3} />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="notes">Personal Notes</Label>
-              <Textarea id="notes" name="notes" value={formData.notes || ''} onChange={handleChange} rows={2} />
+              </select>
             </div>
             
-            <div className="flex items-center space-x-2 md:col-span-2 pt-2">
-              <input 
-                type="checkbox" 
-                id="is_favorite" 
-                name="is_favorite" 
-                checked={formData.is_favorite} 
-                onChange={handleCheckboxChange} 
-                className="w-4 h-4 rounded border-input text-primary focus:ring-primary"
-              />
-              <Label htmlFor="is_favorite" className="cursor-pointer">Mark as Favorite</Label>
+            <div className="space-y-2">
+              <label htmlFor="current_chapter" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Current Ch. *</label>
+              <input id="current_chapter" name="current_chapter" type="number" min="0" value={formData.current_chapter} onChange={handleChange} required className="w-full bg-surface-elevated border border-border px-4 py-3 text-sm focus:outline-none focus:border-accent" />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="total_chapters" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Total Ch.</label>
+              <input id="total_chapters" name="total_chapters" type="number" min="0" value={formData.total_chapters || ''} onChange={handleChange} placeholder="?" className="w-full bg-surface-elevated border border-border px-4 py-3 text-sm focus:outline-none focus:border-accent" />
             </div>
           </div>
-        </CardContent>
-        <CardFooter className="flex justify-end space-x-2 border-t p-6">
-          <Button type="button" variant="outline" onClick={() => navigate(-1)} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Saving..." : "Save Title"}
-          </Button>
-        </CardFooter>
-      </form>
-    </Card>
+
+          <div className="space-y-2">
+            <label htmlFor="tags" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Tags (Comma Separated)</label>
+            <input 
+              id="tags" value={tagsString} onChange={(e) => setTagsString(e.target.value)} 
+              placeholder="Action, Fantasy, System, Overpowered" 
+              className="w-full bg-surface-elevated border border-border px-4 py-3 text-sm focus:outline-none focus:border-accent transition-colors"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="description" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Synopsis</label>
+            <textarea 
+              id="description" name="description" value={formData.description || ''} onChange={handleChange} rows={5} 
+              className="w-full bg-surface-elevated border border-border px-4 py-4 text-sm focus:outline-none focus:border-accent transition-colors font-serif resize-none"
+              placeholder="Enter the official synopsis or your own summary..."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="notes" className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Personal Notes</label>
+            <textarea 
+              id="notes" name="notes" value={formData.notes || ''} onChange={handleChange} rows={3} 
+              className="w-full bg-surface-elevated border border-border px-4 py-4 text-sm focus:outline-none focus:border-accent transition-colors font-serif resize-none"
+              placeholder="Thoughts, specific details to remember..."
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 pt-6 border-t border-border mt-4">
+            <button 
+              type="button" 
+              onClick={() => navigate(-1)} 
+              disabled={isLoading}
+              className="w-full bg-transparent border border-border text-foreground hover:bg-surface-elevated transition-colors py-4 text-xs font-semibold uppercase tracking-widest"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full bg-accent text-background hover:bg-accent/90 transition-colors py-4 text-xs font-semibold uppercase tracking-widest flex justify-center items-center"
+            >
+              {isLoading ? <Loader2 size={16} className="animate-spin" /> : "Save Archive Entry"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
   )
 }

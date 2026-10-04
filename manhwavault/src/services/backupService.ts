@@ -41,14 +41,6 @@ export const backupService = {
     const { data: history } = await supabase.from('reading_history').select('*').eq('user_id', userId)
     if (history) backup.reading_history = history
 
-    // 5. Fetch User Settings (if exists)
-    try {
-      const { data: settings } = await supabase.from('user_settings').select('*').eq('user_id', userId)
-      if (settings) backup.user_settings = settings
-    } catch (e) {
-      console.warn("user_settings table might not exist", e)
-    }
-
     return backup
   },
 
@@ -92,10 +84,6 @@ export const backupService = {
     await safeUpsert('tags', data.tags)
     await safeUpsertManhwaTags(data.manhwa_tags)
     await safeUpsert('reading_history', data.reading_history)
-    
-    if (data.user_settings && data.user_settings.length > 0) {
-      await safeUpsert('user_settings', data.user_settings)
-    }
   },
 
   async exportCsv(userId: string): Promise<string> {
@@ -133,23 +121,10 @@ export const backupService = {
   },
   
   async getLastBackupDate(userId: string): Promise<string | null> {
-    try {
-      // Let's store/retrieve it in localStorage as a fallback, or user_settings
-      const { data } = await supabase.from('user_settings').select('last_backup_date').eq('user_id', userId).single()
-      if (data && data.last_backup_date) return data.last_backup_date
-    } catch {
-      // Fallback
-    }
     return localStorage.getItem(`last_backup_${userId}`)
   },
   
   async updateLastBackupDate(userId: string, date: string): Promise<void> {
-    try {
-      const { error } = await supabase.from('user_settings').upsert({ user_id: userId, last_backup_date: date })
-      if (!error) return
-    } catch {
-      // Ignore
-    }
     localStorage.setItem(`last_backup_${userId}`, date)
   }
 }

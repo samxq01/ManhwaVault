@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { backupService, type BackupData } from "@/services/backupService"
-import { Download, Upload, FileJson, FileSpreadsheet, AlertTriangle, CheckCircle, Clock, Smartphone, ChevronRight } from "lucide-react"
+import { Download, Upload, FileJson, FileSpreadsheet, AlertTriangle, CheckCircle, Clock, Smartphone, ChevronRight, Loader2 } from "lucide-react"
 import { useInstallPrompt } from "@/hooks/useInstallPrompt"
 
 export function Settings() {

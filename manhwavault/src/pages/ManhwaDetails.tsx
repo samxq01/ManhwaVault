@@ -7,7 +7,7 @@ import { storageService } from "@/services/storageService"
 import { useToast } from "@/contexts/ToastContext"
 import { CoverImage } from "@/components/CoverImage"
 import { ChapterControls } from "@/components/ChapterControls"
-import { ArrowLeft, Edit, Trash2, Heart, Loader2, ArrowRight } from "lucide-react"
+import { ArrowLeft, Edit, Trash2, Heart, Loader2 } from "lucide-react"
 import type { Manhwa, Tag } from "@/types"
 
 export function ManhwaDetails() {

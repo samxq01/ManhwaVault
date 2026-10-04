@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { Plus, Search, Filter, X, Heart, Loader2, ArrowRight } from "lucide-react"
+import { Plus, Search, Filter, X, Heart, Loader2 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { manhwaService } from "@/services/manhwaService"
 import { tagService } from "@/services/tagService"
-import { historyService } from "@/services/historyService"
 import { getCoverColorClass } from "@/utils/coverColors"
 import { useToast } from "@/contexts/ToastContext"
 import { CoverImage } from "@/components/CoverImage"
@@ -15,7 +14,6 @@ export function Library() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [manhwas, setManhwas] = useState<(Manhwa & { tags?: Tag[] })[]>([])
-  const [allTags, setAllTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -24,7 +22,6 @@ export function Library() {
   const [statusFilter, setStatusFilter] = useState("All")
   const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [sortOption, setSortOption] = useState("recently_updated")
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
   
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
   const { toast } = useToast()
@@ -35,13 +32,11 @@ export function Library() {
       setLoading(true)
       setError(null)
       
-      const [fetchedManhwas, fetchedTags, manhwaTagsList] = await Promise.all([
+      const [fetchedManhwas, , manhwaTagsList] = await Promise.all([
         manhwaService.getManhwa(user.id),
         tagService.getTags(user.id),
         tagService.getManhwaTags(user.id)
       ])
-      
-      setAllTags(fetchedTags)
       
       const combined = fetchedManhwas.map(m => {
         const mt = manhwaTagsList.find(x => x.manhwa_id === m.id)
@@ -79,12 +74,7 @@ export function Library() {
       result = result.filter(m => m.is_favorite)
     }
 
-    if (selectedTags.length > 0) {
-      result = result.filter(m => {
-        const mTagIds = m.tags?.map(t => t.id) || []
-        return selectedTags.every(tagId => mTagIds.includes(tagId))
-      })
-    }
+
 
     result.sort((a, b) => {
       switch (sortOption) {
@@ -99,7 +89,7 @@ export function Library() {
     })
 
     return result
-  }, [manhwas, searchQuery, statusFilter, favoritesOnly, sortOption, selectedTags])
+  }, [manhwas, searchQuery, statusFilter, favoritesOnly, sortOption])
 
   return (
     <div className="px-6 md:px-12 py-8 max-w-7xl mx-auto min-h-screen">
@@ -212,7 +202,7 @@ export function Library() {
                          manhwa={m} 
                          userId={user?.id || ''} 
                          compact={true}
-                         onUpdateSuccess={(newChapter) => toast("Saved", `${m.title} updated`)}
+                         onUpdateSuccess={() => toast("Saved", `${m.title} updated`)}
                        />
                      </div>
                   </div>

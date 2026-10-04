@@ -54,10 +54,10 @@ export function ManhwaAdd() {
   }
 
   return (
-    <div className="p-6 md:p-10 space-y-6">
-      <header className="mb-6">
-        <h2 className="text-3xl font-bold tracking-tight">Add to Library</h2>
-        <p className="text-muted-foreground mt-2">Add a new title to track your reading progress.</p>
+    <div className="px-6 md:px-12 py-10 max-w-7xl mx-auto min-h-screen">
+      <header className="mb-12 border-b border-border pb-6">
+        <span className="editorial-subheading text-accent">Collection</span>
+        <h2 className="editorial-heading mt-2">Add New Title.</h2>
       </header>
       <ManhwaForm onSubmit={handleSubmit} isLoading={loading} />
     </div>
